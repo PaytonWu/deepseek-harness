@@ -36,7 +36,7 @@ pi owns conversation content: the message tree, turns, and tool traffic persist 
 
 - The plugin locates `pi` on PATH and fails loudly with install guidance when it is missing; it never downloads or bundles a pi runtime.
 - pi's native models and credentials stay authoritative. The plugin offers optional overrides only: forwarding provider and model as CLI arguments and injecting an explicit environment map.
-- A `permission` config field, `reject` (default) or `allow`, auto-answers pi permission records. A child runs in the parent's effective directory; worktree isolation and a cross-harness approval channel are out of scope.
+- Reach control is pi's native tool allowlist: a `tools` config field forwards to pi's `--tools` selection (default: pi's own default tool set), so a read-only child is one configuration line. pi raises no per-tool approval records; there is no cross-harness approval channel, and worktree isolation is out of scope. A child runs in the parent's effective directory.
 
 ### Storage and lifecycle
 
@@ -67,7 +67,7 @@ The plugin ships in the Plugins page for web, headless, SDK, and Desktop profile
 
 ## Risks
 
-- The pi RPC protocol and session restore flags are versioned with the installed pi; protocol drift breaks the plugin. Detect and fail loudly on mismatch instead of degrading.
+- The pi RPC protocol and session restore flags are versioned with the installed pi; protocol drift breaks the plugin. Record the resolved pi version at plugin start and fail loudly on malformed RPC traffic instead of degrading.
 - Orphan cleanup kills by pid after command-line verification; pid reuse can defeat the check, so the cleanup stays best-effort and skips uncertain cases.
 - pi children are outside the subagent tree and its guards; capacity control is `maxChildren` alone.
 - `start` returns before completion; a long task occupies a child slot until it settles or is interrupted.
