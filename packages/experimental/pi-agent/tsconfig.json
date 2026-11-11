@@ -18,10 +18,16 @@
       "path": "../../../vendor/schemastery"
     },
     {
+      "path": "../../util/atomic-write"
+    },
+    {
       "path": "../../util/home-paths"
     },
     {
       "path": "../../core/agent"
+    },
+    {
+      "path": "../../core/system-prompt"
     },
     {
       "path": "../../llm/llm"
