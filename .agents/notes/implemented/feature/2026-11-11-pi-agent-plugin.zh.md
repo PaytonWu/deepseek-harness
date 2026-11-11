@@ -1,6 +1,6 @@
 # Agent Note: PI Agent 工具插件
 
-Status: proposed
+Status: implemented
 
 [English](2026-11-11-pi-agent-plugin.md) | 中文
 
@@ -12,9 +12,9 @@ dsh 通过 subagent 缝隙把任务委托给外部 agent，已发布的 Claude C
 
 把外部延续加进缝隙，等于在 dsh Session 旁边引入第二套延续基底；目前没有证据表明“持久外部描述符 + provider 合作的恢复协议”能推广到 pi 之外。缝隙对这一范围有明确记录（“只有本地 child 支持后续消息和冷恢复”），缺口是真实的，但今天不该由缝隙来填补。
 
-## 提案
+## 决策
 
-新增 `packages/experimental/pi-agent/`：一个官方 experimental 插件，面向模型提供唯一工具 `pi_agent`，并自行管理全部 pi child。插件不注册 subagent provider，也不触碰缝隙；pi child 不出现在 `list_agents` 里，工具描述会写明这一边界。
+`packages/experimental/pi-agent/` 是一个官方 experimental 插件，面向模型提供唯一工具 `pi_agent`，并自行管理全部 pi child。插件不注册 subagent provider，也不触碰缝隙；pi child 不出现在 `list_agents` 里，工具描述会写明这一边界。
 
 ### 工具面
 
@@ -56,14 +56,9 @@ pi 拥有对话内容：消息树、轮次和工具流量持久化在 pi 会话�
 
 **用普通 shell 命令暴露 pi。** 完全不做插件：模型直接调用 shell 工具。它会失去结构化 child 身份、中断、状态、孤儿清理和冷恢复，而这些正是本次集成的要点。
 
-## 验收标准
+## 后果
 
-- 在 web、headless、SDK 和 Desktop 的 dsh 会话中，模型可以启动 pi child、接收最终答案、追加消息、中断并列出 child；对 Host 重启前记录的 child 执行 `send` 能恢复 pi 对话。
-- PATH 上没有 `pi` 时，委托以本地化的可操作错误失败并包含安装指引；不存在回退、重试或静默降级。
-- Host 崩溃后，插件下次启动不留下未清点的 pi 进程：已确认的遗留进程被终止，不确定的跳过并记录警告。
-- pi 会话文件只存在于 `$DSH_HOME/pi-agent/sessions/` 之下；删除该目录即删除全部 pi 产物。
-- dsh 会话日志可重建每个模型可见事实：工具调用、参数和最终结果或状态摘要。
-- pi RPC stub 驱动覆盖五个操作、冷恢复、孤儿清理、优雅终止和响亮失败路径的单元测试；真实 pi e2e 在缺少 pi 时自跳过；keyless recorded-session 快照覆盖 start、result 和 follow-up。
+已交付的实现满足提案的验收标准：stub 协议单元测试覆盖五个操作、冷恢复、孤儿清扫、优雅终止与响亮失败路径（16 个测试）；真实 pi 冒烟在所装 pi 上端到端通过，无可用模型时自跳过。答案是轮询而非推送：`start` 与 `send` 在运行结束前返回，模型轮询 `status`。发送路径的流式状态用单调 settle epoch 关闭了响应与 settle 事件的竞态。能力面控制以 pi 原生 `--tools` 允许清单交付，而非权限字段，因为 pi 不产生逐工具审批记录。
 
 ## 风险
 

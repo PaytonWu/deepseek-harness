@@ -52,7 +52,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 <details>
 <summary>Implementation details — click to expand</summary>
 
-The plugin starts every child with pi's RPC mode, pins `--session-dir` under the Harness home, and reads the concrete session file from RPC `get_state` into its pointer registry. Sending uses RPC `prompt` (queueing with `followUp` while a run is streaming); interruption uses `clear_queue` and `abort`; completion is observed on the `agent_settled` event. Registry records survive restarts; a child whose record predates a Host restart is cold-resumed from its pi session file. On Host exit the plugin terminates live children gracefully; after a crash it kills a leftover process only after verifying its command line, and skips uncertain cases with a warning. The [proposal record](../../../.agents/notes/proposed/feature/2026-11-11-pi-agent-plugin.md) owns the decision not to extend the subagent seam.
+The plugin starts every child with pi's RPC mode, pins `--session-dir` under the Harness home, and reads the concrete session file from RPC `get_state` into its pointer registry. Sending uses RPC `prompt` (queueing with `followUp` while a run is streaming); interruption uses `clear_queue` and `abort`; completion is observed on the `agent_settled` event. Registry records survive restarts; a child whose record predates a Host restart is cold-resumed from its pi session file. On Host exit the plugin terminates live children gracefully; after a crash it kills a leftover process only after verifying its command line, and skips uncertain cases with a warning. The [decision record](../../../.agents/notes/implemented/feature/2026-11-11-pi-agent-plugin.md) owns the decision not to extend the subagent seam.
 
 </details>
 
@@ -73,21 +73,28 @@ pi RPC mode — the child-side wire contract, documented with the installed pi p
 
 #### What the model sees
 
-Scaffold state: this package registers no model-facing surface yet. The `pi_agent` tool definition, schema, and usage guidance land with its implementation.
+The `pi_agent` tool declaration, its parameter schema (op/task/message/childId/cwd), and the `tool:pi-agent` system-prompt section, whenever the bundle layer is enabled for the running Host.
+
+##### Verbatim system-prompt text
+
+```markdown
+Use pi_agent only when the operator explicitly asks for pi. This channel is separate from dsh subagents: pi children do not appear in list_agents and cannot receive subagent messages. start returns a childId immediately; poll status for the answer, send for follow-ups, interrupt to stop a running turn. Children survive Host restarts; an inactive child resumes on send.
+```
 
 #### Token effect
 
-Zero-direct token effect.
+Conditional: the tool schema and prompt section are declared only while the plugin is enabled; enabling or disabling changes the request prefix accordingly.
 
 #### KV Cache effect
 
-Independent of model requests; nothing here appends to or replaces a request prefix.
+Replacing: toggling the plugin adds or removes the tool declaration and prompt section, invalidating an existing cached prefix; while enabled, steady-state requests keep a stable repeated prefix.
 
 ## Known Limitations and Deferred Work
 
-- **Tool not yet implemented** — this scaffold ships configuration, metadata, and bundle wiring only; the five `pi_agent` operations land with the runtime implementation.
 - **pi must be on PATH** — the plugin neither downloads nor bundles a pi runtime; hosts without pi fail loudly by design.
 - **Children are outside the subagent tree** — `list_agents`, tree messaging, and seam guards do not see pi children; capacity is bounded by `maxChildren` alone.
+- **Answers are polled, not pushed** — `start` and `send` return before the run finishes; the model must poll `status`, and a settled answer is recorded only after the poll observes it.
+- **RPC protocol is versioned with pi** — the plugin targets the pi RPC subset documented with the installed pi; protocol drift fails loudly on malformed traffic.
 ### Dev Note
 <details>
 <summary>Maintainer context — click to expand</summary>

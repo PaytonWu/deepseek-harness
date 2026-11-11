@@ -82,7 +82,7 @@ type PiAgentResult =
 
 const CHILD_SUMMARY_PROPERTIES = {
   childId: { type: 'string', required: true },
-  state: { type: 'string', required: true, oneOf: [{ const: 'running' }, { const: 'idle' }, { const: 'inactive' }] },
+  state: { type: 'string', required: true, enum: ['running', 'idle', 'inactive'] },
   cwd: { type: 'string', required: true },
   sessionFile: { type: 'string', required: true },
   lastResult: { type: 'string' },
@@ -228,7 +228,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     name: 'pi_agent',
     description: 'Delegate a coding task to a pi coding-agent child and keep it continuable. This is a dedicated pi channel: pi children are not dsh subagents, do not appear in list_agents, and use pi\'s own session, model, and credentials. Use it only when the operator explicitly asks for pi.',
     parameters: {
-      op: { type: 'string', required: true, oneOf: [{ const: 'start' }, { const: 'send' }, { const: 'interrupt' }, { const: 'status' }, { const: 'list' }], description: 'Operation: start, send, interrupt, status, or list.' },
+      op: { type: 'string', required: true, enum: ['start', 'send', 'interrupt', 'status', 'list'], description: 'Operation: start, send, interrupt, status, or list.' },
       task: { type: 'string', description: 'start: one self-contained task text for the new child.' },
       message: { type: 'string', description: 'send: follow-up message for the child; an inactive child resumes from its pi session.' },
       childId: { type: 'string', description: 'Target child id from start or list.' },
@@ -243,7 +243,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           },
           {
             type: 'object', additionalProperties: false,
-            properties: { kind: { type: 'string', required: true, const: 'sent' }, childId: { type: 'string', required: true }, state: { type: 'string', required: true, oneOf: [{ const: 'running' }, { const: 'idle' }] } },
+            properties: { kind: { type: 'string', required: true, const: 'sent' }, childId: { type: 'string', required: true }, state: { type: 'string', required: true, enum: ['running', 'idle'] } },
           },
           {
             type: 'object', additionalProperties: false,

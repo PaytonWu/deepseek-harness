@@ -52,7 +52,7 @@ pi 自身的模型、凭据与设置保持权威；覆盖字段只转发 CLI 参
 <details>
 <summary>实现细节 — 点击展开</summary>
 
-插件以 pi 的 RPC 模式启动每个 child，把 `--session-dir` 钉在 Harness home 之下，并通过 RPC `get_state` 把具体会话文件读入指针注册表。发送使用 RPC `prompt`（运行流式期间以 `followUp` 排队）；中断使用 `clear_queue` 与 `abort`；完成状态由 `agent_settled` 事件观察。注册表记录可跨重启存活；记录早于 Host 重启的 child 会从其 pi 会话文件冷恢复。Host 退出时插件优雅终止存活的 child；崩溃后只有在校验过命令行之后才终止遗留进程，不确定的情况带警告跳过。不扩展 subagent 缝隙的决策由[提案记录](../../../.agents/notes/proposed/feature/2026-11-11-pi-agent-plugin.zh.md)持有。
+插件以 pi 的 RPC 模式启动每个 child，把 `--session-dir` 钉在 Harness home 之下，并通过 RPC `get_state` 把具体会话文件读入指针注册表。发送使用 RPC `prompt`（运行流式期间以 `followUp` 排队）；中断使用 `clear_queue` 与 `abort`；完成状态由 `agent_settled` 事件观察。注册表记录可跨重启存活；记录早于 Host 重启的 child 会从其 pi 会话文件冷恢复。Host 退出时插件优雅终止存活的 child；崩溃后只有在校验过命令行之后才终止遗留进程，不确定的情况带警告跳过。不扩展 subagent 缝隙的决策由[决策记录](../../../.agents/notes/implemented/feature/2026-11-11-pi-agent-plugin.zh.md)持有。
 
 </details>
 
@@ -74,22 +74,29 @@ pi RPC 模式 — 子进程侧的线上契约，随所安装的 pi 包提供文�
 
 #### What the model sees
 
-Scaffold state: this package registers no model-facing surface yet. The `pi_agent` tool definition, schema, and usage guidance land with its implementation.
+The `pi_agent` tool declaration, its parameter schema (op/task/message/childId/cwd), and the `tool:pi-agent` system-prompt section, whenever the bundle layer is enabled for the running Host.
+
+##### Verbatim system-prompt text
+
+```markdown
+Use pi_agent only when the operator explicitly asks for pi. This channel is separate from dsh subagents: pi children do not appear in list_agents and cannot receive subagent messages. start returns a childId immediately; poll status for the answer, send for follow-ups, interrupt to stop a running turn. Children survive Host restarts; an inactive child resumes on send.
+```
 
 #### Token effect
 
-Zero-direct token effect.
+Conditional: the tool schema and prompt section are declared only while the plugin is enabled; enabling or disabling changes the request prefix accordingly.
 
 #### KV Cache effect
 
-Independent of model requests; nothing here appends to or replaces a request prefix.
+Replacing: toggling the plugin adds or removes the tool declaration and prompt section, invalidating an existing cached prefix; while enabled, steady-state requests keep a stable repeated prefix.
 
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
-- **工具尚未实现** — 本脚手架仅交付配置、元数据与 bundle 接线；`pi_agent` 的五个操作随运行时实现落地。
 - **pi 必须在 PATH 上** — 插件既不下载也不捆绑 pi 运行时；没有 pi 的 Host 按设计响亮失败。
 - **child 位于 subagent 树之外** — `list_agents`、树内消息与缝隙守卫看不到 pi child；容量仅由 `maxChildren` 约束。
+- **答案是轮询而非推送** — `start` 与 `send` 在运行结束前返回；模型必须轮询 `status`，已完成的答案只有在轮询观察到后才被记录。
+- **RPC 协议随 pi 版本演进** — 插件面向随所装 pi 提供文档的 RPC 子集；协议漂移在流量畸形时响亮失败。
 
 ### 开发备注
 <details>

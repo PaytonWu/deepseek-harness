@@ -117,7 +117,9 @@ export class PiRpcChild {
   private exited = false
   private exitDetail = 'unknown exit'
   private fatalError: Error | undefined
-  private streaming = false
+  private runsStarted = 0
+  private runsSettled = 0
+  private optimisticStart = false
   private _sessionFile: string | undefined
   private _sessionId: string | undefined
   private disposed = false
@@ -163,7 +165,7 @@ export class PiRpcChild {
   /** Host-side process id of the spawned child, or undefined after exit. */
   get pid(): number | undefined { return this.process.pid }
   /** Whether a run is currently streaming. */
-  get isStreaming(): boolean { return this.streaming }
+  get isStreaming(): boolean { return this.runsStarted > this.runsSettled }
   /** Whether the process has exited. */
   get hasExited(): boolean { return this.exited }
 
@@ -172,7 +174,7 @@ export class PiRpcChild {
     const state = await this.command<PiState>('get_state')
     this._sessionFile = state.sessionFile
     this._sessionId = state.sessionId
-    this.streaming = state.isStreaming
+    this.calibrate(state.isStreaming)
     return state
   }
 
@@ -180,9 +182,13 @@ export class PiRpcChild {
   async sendPrompt(text: string): Promise<string> {
     const data = await this.command<{ disposition?: string }>('prompt', {
       message: text,
-      ...this.streaming ? { streamingBehavior: 'followUp' as const } : {},
+      ...this.isStreaming ? { streamingBehavior: 'followUp' as const } : {},
     })
-    this.streaming = true
+    if (data.disposition === 'started' && !this.isStreaming && !this.optimisticStart) {
+      // the run's agent_start event may still be in flight; count it optimistically
+      this.optimisticStart = true
+      this.runsStarted += 1
+    }
     return data.disposition ?? 'accepted'
   }
 
@@ -195,14 +201,22 @@ export class PiRpcChild {
       void this.command('abort').then(() => { clearTimeout(timer); resolve() }, (error: unknown) => { clearTimeout(timer); reject(error instanceof Error ? error : new Error(String(error))) })
     })
     await bounded
-    this.streaming = false
+    // abort responds once the session is idle, so align the run counters
+    this.calibrate(false)
   }
 
   /** Current session state from the child. */
   async state(): Promise<PiState> {
     const state = await this.command<PiState>('get_state')
-    this.streaming = state.isStreaming
+    this.calibrate(state.isStreaming)
     return state
+  }
+
+  /** Align run counters with one authoritative streaming answer. */
+  private calibrate(streaming: boolean): void {
+    this.optimisticStart = false
+    this.runsStarted = streaming ? 1 : 0
+    this.runsSettled = 0
   }
 
   /** Last assistant text, bounded; `undefined` before any answer. */
@@ -214,7 +228,7 @@ export class PiRpcChild {
 
   /** Resolve when the current run settles, or immediately when idle or exited. */
   async waitSettled(): Promise<void> {
-    if (this.exited || !this.streaming) return
+    if (this.exited || !this.isStreaming) return
     await new Promise<void>((resolve) => {
       this.settleWaiters.push(resolve)
     })
@@ -290,9 +304,10 @@ export class PiRpcChild {
     }
     if (kind === 'session-event') {
       if (record.type === 'agent_start') {
-        this.streaming = true
+        if (this.optimisticStart) this.optimisticStart = false
+        else this.runsStarted += 1
       } else if (record.type === 'agent_settled') {
-        this.streaming = false
+        if (this.runsSettled < this.runsStarted) this.runsSettled += 1
         const waiters = this.settleWaiters.splice(0)
         for (const waiter of waiters) waiter()
       }
@@ -309,7 +324,7 @@ export class PiRpcChild {
     if (this.exited) return
     this.exitDetail = detail
     this.exited = true
-    this.streaming = false
+    this.runsSettled = this.runsStarted
     for (const line of this.lineReader.flush()) {
       try {
         this.dispatch(JSON.parse(line) as RpcRecord)
