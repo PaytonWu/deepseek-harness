@@ -68,6 +68,12 @@ pi 自身的模型、凭据与设置保持权威；覆盖字段只转发 CLI 参
 pi RPC 模式 — 子进程侧的线上契约，随所安装的 pi 包提供文档
 
 <a id="model-experience"></a>
+## 数字员工
+
+`/new-employee <名称> --cwd <目录> --description <职责> [--session <文件>]` 创建一个数字员工：一个具名 pi 编码代理，拥有自己的 dsh 会话，位于 **我的数字员工** Workspace 分组。该会话中的消息直通员工的 pi 子代理 —— `pi-employee` LLM adapter 路由把 pi 变成会话的“模型”，历史、搜索与中断全部复用普通会话生命周期。职责描述在全新 pi 会话中作为第一条指令注入；导入的 `--session` 文件则让员工续用既有 pi 记忆。员工记录持久化于 `$DSH_HOME/pi-agent/employees.json`。
+
+侧边栏创建表单弹窗延后：它需要 `ui-workspace` 新增分组头 slot（产品 UI 变更，需设计评审）。
+
 ## Model Experience
 
 ### Request context and condition

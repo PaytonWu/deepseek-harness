@@ -84,6 +84,15 @@
 
 反向核对：每个 Stage 的每条测试都出现在矩阵左列 —— T1.x/T2.x/T3.x/T4.x/T5.x 全部可追溯（T2.3 为 API 面一致性保护，属 N1 API 面附带；T5.x 为质量门槛，对应 KR4）。
 
+## 执行状态（2026-11-11）
+
+- Stage 0 ✅ 决议见下节。
+- Stage 1 ✅ EmployeeStore（14 测试）。
+- Stage 2 ✅ EmployeeDirectoryService（remote CRUD + 编排；4 测试，gateway wire 层由框架拥有，未重复测试）。
+- Stage 3 ✅ 直通以 `pi-employee` LLM adapter 落地（Stage 0 决议 Q-B）；T3.2 的“零 LLM 请求”断言在 adapter 语义下转化为“assistant 文本来自 pi 回答”；T3.1/T3.4 的绑定与恢复由 directory 编排 + store.sessionId 承载（T2 覆盖）；T3.7 排队语义复用 pi 原生 followUp。adapter 语义 6 测试 + 真实 pi 员工冒烟 SMOKE-PASS。
+- Stage 4 ◐ 命令向导落地（`/new-employee`，6 测试）；**表单弹窗延后**——需要 `ui-workspace` 新增分组头 slot（产品 UI 变更 + 设计评审），T4.1 分组免费（Workspace 实体）、T4.4 locale 字典随弹窗一并落地。
+- Stage 5 ✅ 真实 pi 员工 e2e（SMOKE-PASS）；README 双语；keyless 快照延后（随弹窗 UI 一并录制向导+对话）。测试稳定性：stub 的 stdin 半行缓冲、RPC 命令超时、waitSettled 的 get_state 周期校准三项修复消除了 Windows 多进程竞态（47 测试 20+ 轮全绿）。
+
 ## Stage 0 决议（2026-11-11 spike）
 
 **Q-A 分组：用 Workspace 实体，零 UI 注入。** 侧边栏分组就是 Workspace（`Ungrouped` 是无 workspace 会话桶）。插件初始化时 `workspace/create`（path=`$DSH_HOME/pi-agent/workspace`，mkdir 保证存在）并 rename 为“我的数字员工”；员工会话 `session/create { workspaceId }` 天然落入分组。UI 改动仅剩向导与入口（Stage 4 减重）。

@@ -62,6 +62,7 @@ export class PiChildManager {
     const child = PiRpcChild.start({ ...this.spawnOptions, cwd, sessionFile })
     this.children.set(id, child)
     this.watchExit(id, child)
+    await child.ready()
     await this.registry.update(id, { state: 'running', ...child.pid !== undefined ? { pid: child.pid } : {} })
     return child
   }

@@ -13,6 +13,8 @@ import type { ChildProcess } from 'node:child_process'
 const DISPOSE_GRACE_MS = 3_000
 /** Bounded wait for `abort` to settle the child, milliseconds. */
 const ABORT_WAIT_MS = 60_000
+/** Bounded wait for one command response, milliseconds. */
+const COMMAND_TIMEOUT_MS = 120_000
 /** Bounded characters kept from one pi answer. */
 export const MAX_RESULT_CHARS = 16_384
 
@@ -226,12 +228,27 @@ export class PiRpcChild {
     return text === undefined ? undefined : text.slice(0, MAX_RESULT_CHARS)
   }
 
+  /** Settle-poll interval while waiting on events; the authoritative state query self-heals a lost event. */
+  private static readonly SETTLE_POLL_MS = 2_000
+
   /** Resolve when the current run settles, or immediately when idle or exited. */
   async waitSettled(): Promise<void> {
-    if (this.exited || !this.isStreaming) return
-    await new Promise<void>((resolve) => {
-      this.settleWaiters.push(resolve)
-    })
+    while (!this.exited && this.isStreaming) {
+      await Promise.race([
+        new Promise<void>((resolve) => { this.settleWaiters.push(resolve) }),
+        new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, PiRpcChild.SETTLE_POLL_MS)
+          timer.unref()
+        }),
+      ])
+      // an authoritative poll calibrates the run counters when a settle event never arrived;
+      // the while condition re-reads the calibrated streaming state
+      try {
+        await this.state()
+      } catch {
+        break
+      }
+    }
   }
 
   /** Resolve once the process exits, however it exits. */
@@ -266,16 +283,23 @@ export class PiRpcChild {
         return
       }
       const id = randomUUID()
-      this.pending.set(id, { resolve: (data) => { resolve(data as T) }, reject })
-      const write = () => {
-        this.process.stdin?.write(`${JSON.stringify({ id, type, ...payload })}\n`, (error) => {
-          if (error !== undefined && error !== null) {
-            this.pending.delete(id)
-            reject(new PiExitedError(this.exitDetail))
-          }
-        })
-      }
-      write()
+      const timer = setTimeout(() => {
+        this.pending.delete(id)
+        reject(new Error(`pi-agent: RPC "${type}" received no response within ${String(COMMAND_TIMEOUT_MS)}ms`))
+      }, COMMAND_TIMEOUT_MS)
+      timer.unref()
+      const settle = (): void => { clearTimeout(timer) }
+      this.pending.set(id, {
+        resolve: (data) => { settle(); resolve(data as T) },
+        reject: (error) => { settle(); reject(error) },
+      })
+      this.process.stdin?.write(`${JSON.stringify({ id, type, ...payload })}\n`, (error) => {
+        if (error !== undefined && error !== null) {
+          this.pending.delete(id)
+          settle()
+          reject(new PiExitedError(this.exitDetail))
+        }
+      })
     })
   }
 
