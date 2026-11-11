@@ -84,6 +84,12 @@
 
 反向核对：每个 Stage 的每条测试都出现在矩阵左列 —— T1.x/T2.x/T3.x/T4.x/T5.x 全部可追溯（T2.3 为 API 面一致性保护，属 N1 API 面附带；T5.x 为质量门槛，对应 KR4）。
 
-## Stage 0 决议（spike 后回填）
+## Stage 0 决议（2026-11-11 spike）
 
-（待 Stage 0 完成后填写 Q-A/Q-B/Q-C 的决策与依据。）
+**Q-A 分组：用 Workspace 实体，零 UI 注入。** 侧边栏分组就是 Workspace（`Ungrouped` 是无 workspace 会话桶）。插件初始化时 `workspace/create`（path=`$DSH_HOME/pi-agent/workspace`，mkdir 保证存在）并 rename 为“我的数字员工”；员工会话 `session/create { workspaceId }` 天然落入分组。UI 改动仅剩向导与入口（Stage 4 减重）。
+
+**Q-B 直通：pi 作为自定义 LLM adapter（route-per-employee）。** 会话事件写入面受保护（插件只能 appendPluginRecord，不能写 `assistant/message`），`agent/request` waterfall 只改模型参数、`PreStepDecision.reject` 不携带回复——均不可用。正缝是 `ctx.llm.registerAdapter`：插件为每个员工注册 provider route `pi-employee-<employeeId>`，其 `stream(options)` 不调真模型，而是转发最后一条用户消息给该员工的 pi 子代理（首次新建 pi 会话时先注入职责描述），等待 settle 后把回答作为 text chunk 流返回。dsh 的完整会话生命周期（消息写入、流式、历史、搜索、中断 signal）全部免费复用；MockAdapter 即此模式的先例。中断：`options.signal` abort → pi `clear_queue`+`abort`。
+
+**Q-C 绑定：employees.json 存 `sessionId`。** 员工记录增加 `sessionId?: SessionId`（1:1，v1）；重启恢复走 `session/create` 的 blank-session 复用 + `selectModel('pi-employee-<id>', 'pi')`。会话本身是普通 dsh 会话，可搜索性天然成立。
+
+对 plan 的影响：Stage 3 的“直通”卖现为 adapter（`src/employee-adapter.ts`）；Stage 4 的分组工作转移到 Stage 3（workspace 初始化）；UI 仅剩向导+入口。测试编号不变，映射表维持有效。
