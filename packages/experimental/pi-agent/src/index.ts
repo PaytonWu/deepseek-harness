@@ -16,10 +16,16 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolCallView } from '@deepseek-ai/dsh-tools'
 import { PiChildRegistry, ensurePiAgentDirs } from './registry.ts'
 import type { PiChildRecord } from './registry.ts'
-import { PiRpcChild } from './rpc.ts'
+import type { PiRpcChild } from './rpc.ts'
+import { PiChildManager } from './manager.ts'
+import { EmployeeStore } from './employee-store.ts'
+import type { EmployeeRecord } from './employee-store.ts'
+import { EmployeeDirectoryService } from './employee-directory.ts'
+import { PI_EMPLOYEE_PROVIDER, PiEmployeeAdapter } from './employee-adapter.ts'
+export type { EmployeeCreateRequest, EmployeeDeleteRequest, EmployeeUpdateRequest, EmployeeView } from './types.ts'
 
 export const name = 'pi-agent'
-export const inject = ['tools', 'workingDirectory', 'systemPrompt']
+export const inject = ['tools', 'workingDirectory', 'systemPrompt', 'llm', 'agents', 'workspaceRegistry']
 
 /** Default ceiling on simultaneously live pi children per plugin instance. */
 export const DEFAULT_MAX_CHILDREN = 4
@@ -44,6 +50,8 @@ export interface Config {
   env?: Record<string, string>
   /** Maximum simultaneously live pi children (default 4). */
   maxChildren?: number
+  /** Display title of the digital-employee Workspace group. */
+  groupTitle?: string
 }
 
 /** Schemastery configuration for the pi agent tool consumer. */
@@ -55,6 +63,7 @@ export const Config: z<Config> = z.object({
   model: z.string(),
   env: z.dict(z.string()).default({}),
   maxChildren: z.number().step(1).min(MIN_MAX_CHILDREN).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_CHILDREN),
+  groupTitle: z.string().default('我的数字员工'),
 })
 
 interface PiAgentArgs {
@@ -112,91 +121,6 @@ function requireChildId(args: PiAgentArgs): string {
   return args.childId
 }
 
-/** Fixed spawn inputs shared by every child of one plugin instance. */
-interface SpawnInputs {
-  command: string
-  args: readonly string[]
-  sessionDir: string
-  tools?: string
-  provider?: string
-  model?: string
-  env: Readonly<Record<string, string>>
-}
-
-/** Live child processes keyed by their durable record ids. */
-class PiChildManager {
-  private readonly children = new Map<string, PiRpcChild>()
-
-  constructor(private readonly registry: PiChildRegistry, private readonly spawnOptions: SpawnInputs) {}
-
-  /** Live children that have not exited. */
-  liveCount(): number {
-    let count = 0
-    for (const child of this.children.values()) if (!child.hasExited) count += 1
-    return count
-  }
-
-  /** The live child for one id, or undefined when absent or exited. */
-  live(id: string): PiRpcChild | undefined {
-    const child = this.children.get(id)
-    return child === undefined || child.hasExited ? undefined : child
-  }
-
-  /** Start a new child, persist its record, and deliver the first task. */
-  async create(cwd: string, task: string): Promise<PiChildRecord> {
-    const child = PiRpcChild.start({ ...this.spawnOptions, cwd })
-    const ready = await child.ready()
-    if (ready.sessionFile === undefined) throw new Error('pi-agent: the pi child did not report a session file')
-    const record = await this.registry.create({
-      sessionFile: ready.sessionFile,
-      ...ready.sessionId !== undefined ? { sessionId: ready.sessionId } : {},
-      cwd,
-      ...child.pid !== undefined ? { pid: child.pid } : {},
-    })
-    this.children.set(record.id, child)
-    this.watchExit(record.id, child)
-    await child.sendPrompt(task)
-    this.observeSettled(record.id, child)
-    return record
-  }
-
-  /** Cold-resume one recorded child from its pi session file. */
-  async attach(record: PiChildRecord): Promise<PiRpcChild> {
-    const child = PiRpcChild.start({ ...this.spawnOptions, cwd: record.cwd, sessionFile: record.sessionFile })
-    this.children.set(record.id, child)
-    this.watchExit(record.id, child)
-    await this.registry.update(record.id, { state: 'running', ...child.pid !== undefined ? { pid: child.pid } : {} })
-    return child
-  }
-
-  /** Record the bounded last answer once the current run settles. */
-  observeSettled(id: string, child: PiRpcChild): void {
-    void (async () => {
-      try {
-        await child.waitSettled()
-        const text = await child.lastAssistantText()
-        await this.registry.update(id, { lastResult: text ?? '' })
-      } catch {
-        // an unreadable settled answer stays absent; later status calls retry
-      }
-    })()
-  }
-
-  /** Terminate every live child; used on plugin unload and Host exit. */
-  async disposeAll(): Promise<void> {
-    const exits: Array<Promise<void>> = []
-    for (const child of this.children.values()) {
-      if (!child.hasExited) exits.push(child.dispose())
-    }
-    await Promise.allSettled(exits)
-    this.children.clear()
-  }
-
-  private watchExit(id: string, child: PiRpcChild): void {
-    void child.waitExit().then(() => this.registry.update(id, { state: 'inactive' }).catch(() => undefined))
-  }
-}
-
 /** Validate configuration, prepare durable state, and register the `pi_agent` tool. */
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const command = config.command ?? DEFAULT_COMMAND
@@ -207,6 +131,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
 
   const paths = await ensurePiAgentDirs()
+  const store = EmployeeStore.load(resolve(paths.root, 'employees.json'))
   const registry = PiChildRegistry.load({ file: paths.registryFile, sessionsDir: paths.sessions })
   await registry.sweepOrphans((line) => { ctx.logger.warn(line) })
   const manager = new PiChildManager(registry, {
@@ -220,6 +145,27 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   })
 
   ctx.effect(() => () => { void manager.disposeAll() })
+
+  const ensureChild = async (employee: EmployeeRecord) => {
+    const existing = manager.live(employee.id)
+    if (existing !== undefined) return { child: existing, createdFresh: false }
+    const ensured = await manager.ensureForEmployee(employee)
+    if (ensured.createdFresh && ensured.child.sessionFile !== undefined) {
+      await store.update(employee.id, { piSessionFile: ensured.child.sessionFile })
+    }
+    return ensured
+  }
+  ctx.llm.registerAdapter([PI_EMPLOYEE_PROVIDER], new PiEmployeeAdapter({
+    employeeOf: employeeId => store.get(employeeId),
+    ensureChild,
+  }))
+  new EmployeeDirectoryService(ctx, {
+    store,
+    disposeChild: async (employeeId) => {
+      const live = manager.live(employeeId)
+      if (live !== undefined) await live.dispose()
+    },
+  }, config.groupTitle ?? '我的数字员工')
 
   ctx.systemPrompt.section({
     name: 'tool:pi-agent',
@@ -296,8 +242,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const agent = requireAgent(exec.agent)
         const cwd = await ctx.workingDirectory.ensure(agent, exec.signal)
         const resolved = args.cwd === undefined ? cwd : resolve(cwd, args.cwd)
-        const record = await manager.create(resolved, args.task)
-        return { kind: 'started', childId: record.id, state: 'running' } as const
+        const created = await manager.create(resolved, args.task)
+        return { kind: 'started', childId: created.id, state: 'running' } as const
       }
 
       if (args.op === 'send') {
@@ -305,7 +251,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const childId = requireChildId(args)
         const record = registry.get(childId)
         if (record === undefined) throw new Error(`pi-agent: unknown child ${childId}`)
-        const live = manager.live(childId) ?? await manager.attach(record)
+        const live = manager.live(childId) ?? await manager.attach(childId, record.sessionFile, record.cwd)
         await live.sendPrompt(args.message)
         manager.observeSettled(childId, live)
         return { kind: 'sent', childId, state: live.isStreaming ? 'running' as const : 'idle' as const } as const
