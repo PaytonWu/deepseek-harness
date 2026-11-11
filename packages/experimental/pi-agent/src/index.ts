@@ -22,6 +22,7 @@ import { EmployeeStore } from './employee-store.ts'
 import type { EmployeeRecord } from './employee-store.ts'
 import { EmployeeDirectoryService } from './employee-directory.ts'
 import { PI_EMPLOYEE_PROVIDER, PiEmployeeAdapter } from './employee-adapter.ts'
+import { newEmployeeCommand } from './employee-command.ts'
 export type { EmployeeCreateRequest, EmployeeDeleteRequest, EmployeeUpdateRequest, EmployeeView } from './types.ts'
 
 export const name = 'pi-agent'
@@ -159,13 +160,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     employeeOf: employeeId => store.get(employeeId),
     ensureChild,
   }))
-  new EmployeeDirectoryService(ctx, {
+  const directory = new EmployeeDirectoryService(ctx, {
     store,
     disposeChild: async (employeeId) => {
       const live = manager.live(employeeId)
       if (live !== undefined) await live.dispose()
     },
   }, config.groupTitle ?? '我的数字员工')
+  ctx.inject(['commands'], (commandCtx) => {
+    commandCtx.effect(function* () {
+      yield commandCtx.commands.register(newEmployeeCommand(input => directory.create(input)))
+    }, 'pi-agent command lifecycle')
+  })
 
   ctx.systemPrompt.section({
     name: 'tool:pi-agent',

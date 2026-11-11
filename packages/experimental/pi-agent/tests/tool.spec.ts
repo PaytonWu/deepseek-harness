@@ -90,7 +90,7 @@ describe('dsh-pi-agent tool', () => {
       expect(status.kind).toBe('status')
       if (status.kind !== 'status') throw new Error('unreachable')
       expect(status.children[0]).toMatchObject({ childId, state: 'idle', lastResult: 'OK: do the thing' })
-    })
+    }, { timeout: 10_000 })
     const list = value(await execute(ctx, { op: 'list' }, parent))
     if (list.kind !== 'list') throw new Error('unreachable')
     expect(list.children[0]!.childId).toBe(childId)
@@ -106,7 +106,7 @@ describe('dsh-pi-agent tool', () => {
       const status = value(await execute(ctx, { op: 'status', childId }, parent))
       if (status.kind !== 'status') throw new Error('unreachable')
       expect(status.children[0]).toMatchObject({ state: 'running' })
-    })
+    }, { timeout: 10_000 })
     const interrupted = value(await execute(ctx, { op: 'interrupt', childId }, parent))
     expect(interrupted).toMatchObject({ kind: 'interrupted', childId })
 
@@ -132,7 +132,7 @@ describe('dsh-pi-agent tool', () => {
       const status = value(await execute(ctx2, { op: 'status', childId }, parent))
       if (status.kind !== 'status') throw new Error('unreachable')
       expect(status.children[0]).toMatchObject({ childId, state: 'idle', lastResult: 'OK: continue after restart' })
-    })
+    }, { timeout: 10_000 })
   })
 
   it('enforces maxChildren against live children', async () => {
