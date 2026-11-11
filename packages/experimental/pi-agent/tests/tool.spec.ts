@@ -42,6 +42,9 @@ async function setup(config: piAgent.Config = {}) {
   await ctx.plugin(NativeToolExecutor)
   await ctx.plugin(SessionProjectionRegistry)
   provideWorkingDirectoryFixture(ctx)
+  ctx.provide('llm', { registerAdapter: () => ({ dispose() {}, replace() { return undefined } }) })
+  ctx.provide('agents', { create: async () => ({ agent: { options: {} } }) })
+  ctx.provide('workspaceRegistry', { create: async () => ({ title: '', attachSession: async () => {} }) })
   await ctx.plugin(piAgent, {
     command: process.execPath,
     args: [stubPath],
@@ -115,6 +118,9 @@ describe('dsh-pi-agent tool', () => {
     await ctx2.plugin(NativeToolExecutor)
     await ctx2.plugin(SessionProjectionRegistry)
     provideWorkingDirectoryFixture(ctx2)
+    ctx2.provide('llm', { registerAdapter: () => ({ dispose() {}, replace() { return undefined } }) })
+    ctx2.provide('agents', { create: async () => ({ agent: { options: {} } }) })
+    ctx2.provide('workspaceRegistry', { create: async () => ({ title: '', attachSession: async () => {} }) })
     await ctx2.plugin(piAgent, { command: process.execPath, args: [stubPath], env: {} })
     onTestFinished(async () => {
       await ctx2.fiber.dispose().catch(() => undefined)
