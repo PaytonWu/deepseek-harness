@@ -2654,6 +2654,35 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-persona -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-pi-agent -->
+<a id="deepseek-aidsh-pi-agent"></a>
+
+## `@deepseek-ai/dsh-pi-agent`
+
+- `inject`: `tools` · `workingDirectory`
+- `source`: [`packages/experimental/pi-agent/src/index.ts:21`](../packages/experimental/pi-agent/src/index.ts)
+
+```ts config-catalog
+/** pi child tool configuration. */
+export interface Config {
+  /** Executable started for every child (default `pi`, resolved from PATH). */
+  command?: string
+  /** Extra arguments inserted before pi's own mode arguments. */
+  args?: string[]
+  /** pi tool selection forwarded to `--tools`; omitted keeps pi's default set. */
+  tools?: string
+  /** Provider name forwarded to `--provider`; omitted keeps pi's configuration. */
+  provider?: string
+  /** Model id forwarded to `--model`; omitted keeps pi's configuration. */
+  model?: string
+  /** Environment map layered over the child environment. */
+  env?: Record<string, string>
+  /** Maximum simultaneously live pi children (default 4). */
+  maxChildren?: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-pi-agent -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-plan-mode -->
 <a id="deepseek-aidsh-plan-mode"></a>
 
@@ -5092,6 +5121,7 @@ export interface Config {
 | `@deepseek-ai/dsh-output-retention` | — | [`packages/util/output-retention/src/index.ts`](../packages/util/output-retention/src/index.ts) |
 | `@deepseek-ai/dsh-package-manifest` | — | [`packages/util/package-manifest/src/index.ts`](../packages/util/package-manifest/src/index.ts) |
 | `@deepseek-ai/dsh-personalized-recommendations` | — | [`packages/experimental/personalized-recommendations/src/index.ts`](../packages/experimental/personalized-recommendations/src/index.ts) |
+| `@deepseek-ai/dsh-pi-agent-bundle` | — | [`packages/experimental/pi-agent-bundle/src/index.ts`](../packages/experimental/pi-agent-bundle/src/index.ts) |
 | `@deepseek-ai/dsh-plugin-detail` | — | [`packages/util/plugin-detail/src/index.ts`](../packages/util/plugin-detail/src/index.ts) |
 | `@deepseek-ai/dsh-plugin-market-index` | — | [`packages/util/plugin-market-index/src/index.ts`](../packages/util/plugin-market-index/src/index.ts) |
 | `@deepseek-ai/dsh-remote-mock` | — | [`packages/test-support/remote-mock/src/index.ts`](../packages/test-support/remote-mock/src/index.ts) |

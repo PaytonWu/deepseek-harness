@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "PI agent",
+    "description": "Delegiert Programmieraufgaben an fortsetzbare pi-Subagenten mit eigenen Sitzungen; Follow-ups senden, unterbrechen und Subagenten nach einem Neustart fortsetzen.",
+    "detail": "docs/DETAIL.md"
+  }
+}
