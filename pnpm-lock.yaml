@@ -420,6 +420,9 @@ importers:
       '@deepseek-ai/dsh-personalized-recommendations':
         specifier: workspace:*
         version: link:../../packages/experimental/personalized-recommendations
+      '@deepseek-ai/dsh-pi-agent-bundle':
+        specifier: workspace:*
+        version: link:../../packages/experimental/pi-agent-bundle
       '@deepseek-ai/dsh-plan-mode':
         specifier: workspace:*
         version: link:../../packages/plan/plan-mode
