@@ -121,6 +121,7 @@ export class PiChildRegistry {
         warn(`pi-agent: leftover child ${record.id} (pid ${String(record.pid)}) has an unverifiable command line; skipped`)
       } else if (commandLine.includes(this.sessionsDir) || isPiRpcCommand(commandLine)) {
         if (killProcess(record.pid)) {
+          await waitForProcessExit(record.pid)
           killed += 1
           warn(`pi-agent: killed leftover child ${record.id} (pid ${String(record.pid)})`)
         } else {
@@ -156,6 +157,19 @@ async function commandLineOf(pid: number): Promise<string | undefined> {
     return undefined
   } catch {
     return undefined
+  }
+}
+
+/** Wait until one pid is gone, bounded, so a sweep returns only after its kill landed. */
+async function waitForProcessExit(pid: number): Promise<void> {
+  const deadline = Date.now() + 5_000
+  while (Date.now() < deadline) {
+    try {
+      process.kill(pid, 0)
+      await new Promise((resolve) => { setTimeout(resolve, 100) })
+    } catch {
+      return
+    }
   }
 }
 
