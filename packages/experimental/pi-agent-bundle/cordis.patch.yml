@@ -1,0 +1,3 @@
+- insert:
+    - id: optional-pi-agent
+      name: '@deepseek-ai/dsh-pi-agent'

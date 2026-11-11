@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "pi agent",
+    "description": "Runs delegated coding tasks as continuable pi child agents in their own sessions, with follow-up messages, interruption, and restart-safe child records."
+  }
+}

@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/experimental/pi-agent-bundle/README.md
+/:
+  en: 744638ffee8928e1
+  zh: 942bdf179a0f2922
+/deepseek-ai-dsh-pi-agent-bundle:
+  en: 24afa22e52703d8a
+  zh: 6feff0195a635fd1
+/deepseek-ai-dsh-pi-agent-bundle/summary:
+  en: 3edb618afd9c94b6
+  zh: e05b78961c4a961a
+/deepseek-ai-dsh-pi-agent-bundle/table-of-contents:
+  en: b563e4ec4727d0de
+  zh: e4521549d9f251f0
+/deepseek-ai-dsh-pi-agent-bundle/use-this-package:
+  en: 303c9d4b29e2fc88
+  zh: 5975651a03e130f2
+/deepseek-ai-dsh-pi-agent-bundle/understand-the-implementation:
+  en: e056215a5b13a032
+  zh: b8d353c415a0b7d9
+/deepseek-ai-dsh-pi-agent-bundle/further-exploration:
+  en: ae12f7b01b724a54
+  zh: ff7e7b29eef08ac1
+/deepseek-ai-dsh-pi-agent-bundle/model-experience:
+  en: 51ecce9a86401612
+  zh: 096a56f6e92ad054
+/deepseek-ai-dsh-pi-agent-bundle/model-experience/kv-cache-effect:
+  en: 7f863aec0a1f68d8
+  zh: 1b8c3cd4eae008c3
+/deepseek-ai-dsh-pi-agent-bundle/known-limitations-and-deferred-work:
+  en: 6ba78df1ab0e6ee0
+  zh: d9e1d788f04eef66
+/deepseek-ai-dsh-pi-agent-bundle/known-limitations-and-deferred-work/dev-note:
+  en: 279d01435256cd2a
+  zh: 83780964e5de2f54

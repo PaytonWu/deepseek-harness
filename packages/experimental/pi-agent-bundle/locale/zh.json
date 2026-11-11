@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "PI agent",
+    "description": "把编码任务委托给拥有独立会话、可继续的 pi 子代理；可追加消息、中断，并在重启后恢复子代理。",
+    "detail": "docs/DETAIL.zh.md"
+  }
+}

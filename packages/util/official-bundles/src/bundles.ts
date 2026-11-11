@@ -72,6 +72,7 @@ export const OPTIONAL_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-experimental-tool-worktree',
   '@deepseek-ai/dsh-experimental-forge-bundle',
   '@deepseek-ai/dsh-deepseek-chat-import',
+  '@deepseek-ai/dsh-pi-agent-bundle',
 ]
 
 /** Public DSH release members available through the ordinary on-demand bundle installer. */
