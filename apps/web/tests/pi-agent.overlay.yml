@@ -1,0 +1,9 @@
+# Loader overlay for the local pi-agent validation run (`dsh web --patch`):
+# insert the pi-agent Host row. The provider/model override routes pi children
+# to a model with live quota; the zai default is rate-limited during this test.
+- insert:
+    - id: optional-pi-agent
+      name: '@deepseek-ai/dsh-pi-agent'
+      config:
+        provider: deepseek
+        model: deepseek-chat

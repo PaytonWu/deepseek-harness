@@ -96,7 +96,10 @@ function summary(record: PiChildRecord, live: PiRpcChild | undefined): ChildSumm
 
 function summariesText(children: readonly ChildSummary[]): string {
   if (children.length === 0) return 'No pi children recorded.'
-  return children.map(child => `- ${child.childId} — ${child.state} — ${child.cwd}`).join('\n')
+  return children.map((child) => {
+    const answer = child.lastResult === undefined ? '' : `\n  last result: ${child.lastResult.slice(0, 2_000)}`
+    return `- ${child.childId} — ${child.state} — ${child.cwd}${answer}`
+  }).join('\n')
 }
 
 function requireAgent(agent: Agent | undefined): Agent {
