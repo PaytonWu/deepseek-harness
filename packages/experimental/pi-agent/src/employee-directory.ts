@@ -100,6 +100,13 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     return { deleted: true }
   }
 
+  /** The employee group Workspace's id, so clients can scope their own cleanups. */
+  @Remote('group')
+  async group(): Promise<{ workspaceId?: string }> {
+    const workspace = await this.ensureWorkspace()
+    return { workspaceId: workspace.id }
+  }
+
   /** Spawn one short-lived pi child and ask it for its selectable models. */
   private async queryPiModels(): Promise<{ models: readonly { provider: string; modelId: string; name: string }[] }> {
     const models = await this.deps.listPiModels()

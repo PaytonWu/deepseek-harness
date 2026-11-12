@@ -64,7 +64,9 @@
     "@deepseek-ai/dsh-working-directory": "workspace:*",
     "@deepseek-ai/dsh-workspace": "workspace:*",
     "@deepseek-ai/dsh-session-title": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-context-menu": "workspace:*"
+    "@deepseek-ai/dsh-client-ui-context-menu": "workspace:*",
+    "@deepseek-ai/dsh-api-session-controller": "workspace:*",
+    "@deepseek-ai/dsh-api-workspace-controller": "workspace:*"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:~",
@@ -76,6 +78,8 @@
     "@deepseek-ai/dsh-agent": "workspace:*",
     "@deepseek-ai/dsh-agent-loop-testkit": "workspace:*",
     "@deepseek-ai/dsh-api-remotes": "workspace:*",
+    "@deepseek-ai/dsh-api-session-controller": "workspace:*",
+    "@deepseek-ai/dsh-api-workspace-controller": "workspace:*",
     "@deepseek-ai/dsh-atomic-write": "workspace:*",
     "@deepseek-ai/dsh-client-locale": "workspace:*",
     "@deepseek-ai/dsh-client-store": "workspace:*",
@@ -110,7 +114,9 @@
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-workspace",
-        "@deepseek-ai/dsh-client-ui-context-menu"
+        "@deepseek-ai/dsh-client-ui-context-menu",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-controller"
       ],
       "platform": "web"
     }

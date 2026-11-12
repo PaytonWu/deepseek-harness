@@ -18,6 +18,12 @@
       "path": "../../api/remotes/tsconfig.client.json"
     },
     {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/workspace-controller/tsconfig.client.json"
+    },
+    {
       "path": "../../client/locale/tsconfig.client.json"
     },
     {
