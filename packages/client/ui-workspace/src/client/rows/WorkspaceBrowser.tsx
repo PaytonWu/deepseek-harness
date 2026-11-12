@@ -628,6 +628,7 @@ function SessionTree({
               drag={dragProps}
               home={home}
               useSessionAccess={useSessionAccess}
+              workspaceCwd={group.cwd}
               t={t}
             />
           )
