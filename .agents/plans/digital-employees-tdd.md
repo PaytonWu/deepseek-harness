@@ -95,11 +95,11 @@
 
 ## Stage 6 — 创建向导 UI（N11–N16，2026-11-12 增补）
 
-- T6.1 员工数据层：`type/avatar/model/thinking` 字段迁移与校验（默认名"数字程序员 N"递增；type 模板填充 description）；store 测试先行。
-- T6.2 `employee/piModels` Remote：临时 pi 子进程实拉 `get_available_models`，Host 生命周期缓存，失败降级为空列表 + 明确错误文案；stub 测试。
-- T6.3 `employee/create` 接受新字段；思考强度经子进程就绪后一次性应用（RPC `set_thinking_level`）；模型经 spawn 参数；adapter/ensure 测试。
-- T6.4 ui-workspace 分组头新建菜单 slot（产品扩展点）：分组头 `+` 改为菜单触发；slot 注册菜单项；普通分组无注册项时保持原行为（直接新建会话）；组件测试。
-- T6.5 pi-agent client 面（新 `/client` 入口）：注册"数字程序员"菜单项 + 五字段设置对话框（emoji 徽章集、目录浏览、模型/思考强度下拉）+ 侧边栏员工头像徽章（row leading）；8 语言字典；组件测试。
+- T6.1 ✅ 员工数据层：`type/avatar/model/thinking` 字段迁移与校验（默认名“数字程序员 N”递增；type 模板填充 description）；store 测试先行（15 测试）。
+- T6.2 ✅ `employee/piModels` Remote：临时 pi 子进程实拉 `get_available_models`，Host 生命周期缓存（失败清除缓存待重试）；stub 测试。
+- T6.3 ✅ `employee/create` 接受新字段；思考强度经子进程就绪后一次性应用（RPC `set_thinking_level`）；模型经 spawn 参数；adapter/ensure 测试。
+- T6.4 ✅ ui-workspace 分组头新建菜单 slot（产品扩展点）：`sidebar.workspaces.group.create.item` list slot；close 回调走 owner props（跨插件 value import 被 client bundle purity 门禁禁止）；无注册项时 `+` 保持直接新建；rows 组件测试。
+- T6.5 ✅ pi-agent client 面（`/client` 入口 + `dsh.client` platform web + typert `/remote` 工件）：注册“数字程序员”菜单项 + 五字段对话框（emoji 徽章集、Host 目录选盘、`employee/piModels` 模型下拉、思考强度 SegmentedControl，挂 `shell.overlay`）+ 员工头像徽章（row leading）；8 语言字典；装配+组件测试（含 ui-workspace 88 测试回归）。
 - T6.6 live 验收：`+` → 菜单 → 对话框 → 创建 → 分组下出现具名带头像员工 → 一轮对话（延续实测驱动）。
 
 交叉验证增补：N11↔T6.4、N12↔T6.1、N13↔T6.1/T6.5、N14↔T6.5、N15↔T6.2、N16↔T6.3；T6.6 对应 KR1/KR2 活体验收。

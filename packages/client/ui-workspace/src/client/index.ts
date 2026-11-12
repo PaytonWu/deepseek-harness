@@ -71,7 +71,6 @@ export type {
   WorkspacePickerInjected, WorkspacePickerInput, WorkspacePickerProps,
 } from './contract/slots.ts'
 export type { WorkspaceKey } from './locales.ts'
-export { GroupCreateMenuCloseContext, useGroupCreateMenuClose } from './group-create.tsx'
 
 /** Localized follow-up text for the existing archive notice. */
 export interface ArchiveNotice {

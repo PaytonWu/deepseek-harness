@@ -554,9 +554,10 @@ function SessionTree({
       >
         <ProjectRowItem
           newShortcut={shortcuts.find(row => row.id === 'session.new')}
-          createItems={renderSlot('sidebar.workspaces.group.create.item', {
+          createItems={(close: () => void) => renderSlot('sidebar.workspaces.group.create.item', {
             workspaceId: group.workspaceId,
             label: group.label,
+            close,
           })}
           group={group}
           renderFactorySlot={renderFactorySlot} useContextMenu={useContextMenu} useContextMenuTarget={useContextMenuTarget}

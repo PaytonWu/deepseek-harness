@@ -71,7 +71,9 @@ pi RPC mode — the child-side wire contract, documented with the installed pi p
 
 `/new-employee <name> --cwd <dir> --description <text> [--session <file>]` creates a digital employee: a named pi coding agent with its own dsh session inside the **我的数字员工** Workspace group. Messages in that session pass straight through to the employee's pi child — the `pi-employee` LLM adapter route makes pi the session's model, so history, search, and interruption reuse the ordinary session lifecycle. The responsibility description is injected as the first instruction of a fresh pi session; an imported `--session` file resumes the employee's existing pi memory instead. Employee records persist in `$DSH_HOME/pi-agent/employees.json`.
 
-The sidebar form dialog for employee creation is deferred: it needs a new `ui-workspace` group-header slot (a product UI change with designer review).
+### Creation wizard (client face)
+
+The package ships a browser half (`/client` export, `dsh.client` platform `web`). A Workspace group header's ＋ opens a create menu once any `sidebar.workspaces.group.create.item` entry registers; this package adds the **Digital coder** row, which opens a five-field dialog (name, emoji avatar, working directory with Host picker, pi model from `employee/piModels`, thinking strength) in `shell.overlay`. Creating calls `employee/create`, refreshes the shared employee projection, and opens the new employee's session. Sessions bound to an employee show the employee's emoji through `sidebar.session.row.leading`.
 
 ## Model Experience
 

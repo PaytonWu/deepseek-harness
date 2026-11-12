@@ -72,7 +72,9 @@ pi RPC 模式 — 子进程侧的线上契约，随所安装的 pi 包提供文�
 
 `/new-employee <名称> --cwd <目录> --description <职责> [--session <文件>]` 创建一个数字员工：一个具名 pi 编码代理，拥有自己的 dsh 会话，位于 **我的数字员工** Workspace 分组。该会话中的消息直通员工的 pi 子代理 —— `pi-employee` LLM adapter 路由把 pi 变成会话的“模型”，历史、搜索与中断全部复用普通会话生命周期。职责描述在全新 pi 会话中作为第一条指令注入；导入的 `--session` 文件则让员工续用既有 pi 记忆。员工记录持久化于 `$DSH_HOME/pi-agent/employees.json`。
 
-侧边栏创建表单弹窗延后：它需要 `ui-workspace` 新增分组头 slot（产品 UI 变更，需设计评审）。
+### 创建向导（客户端面）
+
+本包附带浏览器半边（`/client` 导出，`dsh.client` platform 为 `web`）。任一 `sidebar.workspaces.group.create.item` 注册项存在时，Workspace 分组头的 ＋ 会展开新建菜单；本包注册 **数字程序员** 行，在 `shell.overlay` 中弹出五字段对话框（名字、emoji 头像、带 Host 选盘的工作目录、来自 `employee/piModels` 的 pi 模型、思考强度）。创建即调 `employee/create`，刷新共享员工投影，并打开新员工的会话。绑定员工的会话在 `sidebar.session.row.leading` 显示该员工的 emoji。
 
 ## Model Experience
 
