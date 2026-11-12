@@ -64,10 +64,12 @@ type Translate = PropsLocale<typeof NS>['t']
 export function EmployeeCreateDialogHost(
   { useWizard, useCreating, create, listModels, pickDirectory, openSession, close, t }: EmployeeCreateDialogProps,
 ): ReactNode {
-  if (!useWizard(up => up)) return null
+  const up = useWizard(open => open)
+  const busy = useCreating(value => value)
+  if (!up) return null
   return (
     <EmployeeCreateDialog
-      busy={useCreating(value => value)}
+      busy={busy}
       create={create}
       listModels={listModels}
       pickDirectory={pickDirectory}

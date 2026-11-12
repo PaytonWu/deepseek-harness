@@ -100,7 +100,7 @@
 - T6.3 ✅ `employee/create` 接受新字段；思考强度经子进程就绪后一次性应用（RPC `set_thinking_level`）；模型经 spawn 参数；adapter/ensure 测试。
 - T6.4 ✅ ui-workspace 分组头新建菜单 slot（产品扩展点）：`sidebar.workspaces.group.create.item` list slot；close 回调走 owner props（跨插件 value import 被 client bundle purity 门禁禁止）；无注册项时 `+` 保持直接新建；rows 组件测试。
 - T6.5 ✅ pi-agent client 面（`/client` 入口 + `dsh.client` platform web + typert `/remote` 工件）：注册“数字程序员”菜单项 + 五字段对话框（emoji 徽章集、Host 目录选盘、`employee/piModels` 模型下拉、思考强度 SegmentedControl，挂 `shell.overlay`）+ 员工头像徽章（row leading）；8 语言字典；装配+组件测试（含 ui-workspace 88 测试回归）。
-- T6.6 live 验收：`+` → 菜单 → 对话框 → 创建 → 分组下出现具名带头像员工 → 一轮对话（延续实测驱动）。
+- T6.6 ✅ live 验收（SMOKE-PASS，`apps/web/tests/pi-wizard-live.ts` 真浏览器驱动）：`+` → 菜单（新会话｜数字程序员）→ 五字段对话框 → 创建 → 分组下头像徽章行 → 一轮 pi 对话。两处实测修复：wizard host 的条件 hook 调用（React #310）与 client 侧 `remote.$mount(piRemote)` 命名空间挂载（cua 模式）；keyless 快照与无头 e2e 仍为延后项（需 hermetic 化 pi 模型清单）。
 
 交叉验证增补：N11↔T6.4、N12↔T6.1、N13↔T6.1/T6.5、N14↔T6.5、N15↔T6.2、N16↔T6.3；T6.6 对应 KR1/KR2 活体验收。
 
