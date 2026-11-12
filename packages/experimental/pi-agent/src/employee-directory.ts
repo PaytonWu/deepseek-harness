@@ -126,6 +126,14 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     }
   }
 
+  /**
+   * Materialize the group Workspace at plugin start (not lazily at the first
+   * employee), so its default-blank exclusion holds before any client boots.
+   */
+  async warmup(): Promise<void> {
+    await this.ensureWorkspace()
+  }
+
   /** Resolve the employee group Workspace, creating it once. */
   private async ensureWorkspace(): Promise<Workspace> {
     if (this.workspace !== undefined) return this.workspace
@@ -133,6 +141,9 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     await mkdir(path, { recursive: true })
     const workspace = await this.ctx.workspaceRegistry.create(path)
     if (workspace.title !== this.groupTitle) await workspace.setTitle(this.groupTitle)
+    // The roster group is not a default-blank target: the terminal's implicit
+    // new-Session fallbacks must never provision into the employee roster.
+    if (!workspace.defaultBlankExcluded) await workspace.setDefaultBlankExcluded(true)
     this.workspace = workspace
     return workspace
   }

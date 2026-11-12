@@ -27,6 +27,9 @@ export const workspaceRecord = z.object({
   sessionIds: z.array(sessionId),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** Excluded from default-blank fallbacks: the Workspace never receives an
+   * implicitly provisioned Session (explicit creation still targets it). */
+  defaultBlankExcluded: z.boolean().optional(),
 })
 
 /** One stored workspace record, inferred from {@link workspaceRecord}. */

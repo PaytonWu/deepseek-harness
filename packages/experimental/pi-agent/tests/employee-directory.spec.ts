@@ -33,12 +33,15 @@ async function setup() {
     },
   })
   const workspacePath = join(home, 'pi-agent', 'workspace')
+  const workspaceFlags: string[] = []
   ctx.provide('workspaceRegistry', {
     create: async () => {
       const sessions: SessionId[] = []
       const workspace = {
         title: '我的数字员工',
         path: workspacePath,
+        defaultBlankExcluded: false,
+        setDefaultBlankExcluded: async (excluded: boolean) => { workspaceFlags.push(excluded ? 'set' : 'cleared'); workspace.defaultBlankExcluded = excluded },
         attachSession: async (sessionId: SessionId) => { attached.push({ workspace: 'group', sessionId }); sessions.push(sessionId) },
       }
       return workspace
@@ -62,7 +65,7 @@ async function setup() {
     ...overrides,
   })
   const failAgentCreation = (error: Error | undefined): void => { createShouldFail = error }
-  return { service, store, created, attached, disposed, cwd, workspacePath, request, failAgentCreation, piModelQueries }
+  return { service, store, created, attached, disposed, cwd, workspacePath, request, failAgentCreation, piModelQueries, workspaceFlags }
 }
 
 describe('EmployeeDirectoryService (T2.1, T2.2, T3.1)', () => {
@@ -79,6 +82,12 @@ describe('EmployeeDirectoryService (T2.1, T2.2, T3.1)', () => {
     expect(created[0]).toMatchObject({ cwd: workspacePath, provider: PI_EMPLOYEE_PROVIDER, model: view.id })
     expect(attached).toEqual([{ workspace: 'group', sessionId: created[0]!.sessionId }])
     expect(store.get(view.id)?.sessionId).toBe(view.sessionId)
+  })
+
+  it('flags the group workspace as default-blank-excluded on creation', async () => {
+    const { service, request, workspaceFlags } = await setup()
+    await service.create(request())
+    expect(workspaceFlags).toEqual(['set'])
   })
 
   it('maps store validation failures through', async () => {
