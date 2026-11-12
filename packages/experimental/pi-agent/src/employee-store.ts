@@ -10,16 +10,42 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 
+/** Employee type ids and their presets. */
+export const EMPLOYEE_TYPES = {
+  'pi-coder': {
+    label: '数字程序员',
+    description: '你是数字程序员，负责编码任务。收到消息后按要求完成任务并简要汇报。',
+    emoji: '🧑‍💻',
+  },
+} as const
+
+/** Employee type id. */
+export type EmployeeTypeId = keyof typeof EMPLOYEE_TYPES
+
+/** One selectable pi model for an employee. */
+export interface EmployeePiModel {
+  readonly provider: string
+  readonly modelId: string
+}
+
 /** One durable digital-employee record. */
 export interface EmployeeRecord {
   /** Employee id, also the adapter route suffix. */
   readonly id: string
+  /** Employee type; selects the preset template. */
+  readonly type: EmployeeTypeId
   /** User-visible name; unique within the directory. */
   name: string
+  /** Emoji avatar badge. */
+  avatar: string
   /** Responsibility description injected into a fresh pi session. */
   description: string
   /** Working directory the employee's pi child runs in. */
   cwd: string
+  /** Pi model override for this employee's children. */
+  piModel?: EmployeePiModel
+  /** Thinking level applied once when a child starts: off/low/medium/high; omitted follows pi. */
+  thinking?: 'off' | 'low' | 'medium' | 'high'
   /** Imported pi session file; omitted until the first conversation creates one. */
   piSessionFile?: string
   /** Bound dsh session id; set when the employee's session is first opened. */
@@ -30,9 +56,13 @@ export interface EmployeeRecord {
 
 /** Input for one employee creation. */
 export interface EmployeeCreateInput {
-  readonly name: string
-  readonly description: string
+  readonly type?: EmployeeTypeId
+  readonly name?: string
+  readonly avatar?: string
+  readonly description?: string
   readonly cwd: string
+  readonly piModel?: EmployeePiModel
+  readonly thinking?: 'off' | 'low' | 'medium' | 'high'
   readonly piSessionFile?: string
 }
 
@@ -52,12 +82,17 @@ export class EmployeeStore {
     const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
     if (!Array.isArray(parsed)) throw new Error(`pi-agent: employee directory ${file} is malformed (expected an array)`)
     for (const entry of parsed) {
-      const record = entry as EmployeeRecord
+      const record = entry as Partial<EmployeeRecord> & { id?: unknown }
       if (typeof record.id !== 'string' || typeof record.name !== 'string'
         || typeof record.description !== 'string' || typeof record.cwd !== 'string') {
         throw new Error(`pi-agent: employee directory ${file} is malformed (an employee record misses required fields)`)
       }
-      store.records.set(record.id, record)
+      // records written before type/avatar carry no field; fill the pi-coder preset
+      store.records.set(record.id, {
+        ...record,
+        type: 'pi-coder',
+        avatar: record.avatar ?? EMPLOYEE_TYPES['pi-coder'].emoji,
+      } as EmployeeRecord)
     }
     return store
   }
@@ -75,26 +110,41 @@ export class EmployeeStore {
 
   /** Validate input and persist one new employee. */
   async create(input: EmployeeCreateInput): Promise<EmployeeRecord> {
-    if (input.name.trim().length === 0) throw new Error('pi-agent: employee name must be a non-empty string')
-    if (input.description.trim().length === 0) throw new Error('pi-agent: employee description must be a non-empty string')
+    const type = input.type ?? 'pi-coder'
+    const preset = EMPLOYEE_TYPES[type]
+    const name = input.name === undefined || input.name.trim().length === 0 ? this.defaultName(type) : input.name.trim()
+    const description = input.description === undefined || input.description.trim().length === 0 ? preset.description : input.description
     if (!isDirectory(input.cwd)) throw new Error(`pi-agent: employee cwd is not an existing directory: ${input.cwd}`)
     if (input.piSessionFile !== undefined && !existsSync(input.piSessionFile)) {
       throw new Error(`pi-agent: imported pi session file does not exist: ${input.piSessionFile}`)
     }
-    if (this.list().some(employee => employee.name === input.name)) {
-      throw new Error(`pi-agent: an employee named "${input.name}" already exists`)
+    if (this.list().some(employee => employee.name === name)) {
+      throw new Error(`pi-agent: an employee named "${name}" already exists`)
     }
     const record: EmployeeRecord = {
       id: randomUUID().slice(0, 8),
-      name: input.name,
-      description: input.description,
+      type,
+      name,
+      avatar: input.avatar === undefined || input.avatar.trim().length === 0 ? preset.emoji : input.avatar,
+      description,
       cwd: input.cwd,
+      ...input.piModel !== undefined ? { piModel: input.piModel } : {},
+      ...input.thinking !== undefined ? { thinking: input.thinking } : {},
       ...input.piSessionFile !== undefined ? { piSessionFile: input.piSessionFile } : {},
       createdAt: new Date().toISOString(),
     }
     this.records.set(record.id, record)
     await this.save()
     return record
+  }
+
+  /** Next "数字程序员 N"-style default name for one type. */
+  private defaultName(type: EmployeeTypeId): string {
+    const label = EMPLOYEE_TYPES[type].label
+    let index = 1
+    const taken = new Set(this.list().map(employee => employee.name))
+    while (taken.has(`${label} ${index}`)) index += 1
+    return `${label} ${index}`
   }
 
   /** Patch and persist one employee. */

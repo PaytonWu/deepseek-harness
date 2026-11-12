@@ -77,14 +77,17 @@ export class PiChildManager {
     const existing = this.live(employee.id)
     if (existing !== undefined) return { child: existing, createdFresh: false }
     const createdFresh = employee.piSessionFile === undefined
+    const employeeModel = employee.piModel
     const child = PiRpcChild.start({
       ...this.spawnOptions,
       cwd: employee.cwd,
+      ...employeeModel !== undefined ? { provider: employeeModel.provider, model: employeeModel.modelId } : {},
       ...!createdFresh ? { sessionFile: employee.piSessionFile } : {},
     })
     this.children.set(employee.id, child)
     this.watchExit(employee.id, child)
     await child.ready()
+    if (employee.thinking !== undefined) await child.setThinking(employee.thinking)
     return { child, createdFresh }
   }
 

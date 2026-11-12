@@ -7,19 +7,34 @@
 /** Client-facing employee record. */
 export interface EmployeeView {
   readonly id: string
+  readonly type: 'pi-coder'
   readonly name: string
+  readonly avatar: string
   readonly description: string
   readonly cwd: string
+  readonly piModel?: { provider: string; modelId: string }
+  readonly thinking?: 'off' | 'low' | 'medium' | 'high'
   readonly piSessionFile?: string
   readonly sessionId?: string
   readonly createdAt: string
 }
 
+/** One selectable pi model option for an employee. */
+export interface EmployeeModelOption {
+  readonly provider: string
+  readonly modelId: string
+  readonly name: string
+}
+
 /** One employee creation request. */
 export interface EmployeeCreateRequest {
-  readonly name: string
-  readonly description: string
+  readonly type?: 'pi-coder'
+  readonly name?: string
+  readonly avatar?: string
+  readonly description?: string
   readonly cwd: string
+  readonly piModel?: { provider: string; modelId: string }
+  readonly thinking?: 'off' | 'low' | 'medium' | 'high'
   readonly piSessionFile?: string
 }
 

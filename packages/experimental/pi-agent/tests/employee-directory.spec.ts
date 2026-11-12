@@ -45,9 +45,14 @@ async function setup() {
     },
   })
   const disposed: string[] = []
+  const piModelQueries = { count: 0 }
   const service = new EmployeeDirectoryService(ctx, {
     store,
     disposeChild: async (employeeId) => { disposed.push(employeeId) },
+    listPiModels: async () => {
+      piModelQueries.count += 1
+      return [{ provider: 'stub', modelId: 'stub-chat', name: 'Stub Chat' }]
+    },
   }, '我的数字员工')
   onTestFinished(async () => { await ctx.fiber.dispose().catch(() => undefined) })
   const request = (overrides: Partial<EmployeeCreateRequest> = {}): EmployeeCreateRequest => ({
@@ -57,7 +62,7 @@ async function setup() {
     ...overrides,
   })
   const failAgentCreation = (error: Error | undefined): void => { createShouldFail = error }
-  return { service, store, created, attached, disposed, cwd, workspacePath, request, failAgentCreation }
+  return { service, store, created, attached, disposed, cwd, workspacePath, request, failAgentCreation, piModelQueries }
 }
 
 describe('EmployeeDirectoryService (T2.1, T2.2, T3.1)', () => {
@@ -78,9 +83,24 @@ describe('EmployeeDirectoryService (T2.1, T2.2, T3.1)', () => {
 
   it('maps store validation failures through', async () => {
     const { service, cwd } = await setup()
-    await expect(service.create({ name: '', description: 'd', cwd })).rejects.toThrow(/name/)
-    await expect(service.create({ name: 'n', description: ' ', cwd })).rejects.toThrow(/description/)
-    await expect(service.create({ name: 'n', description: 'd', cwd: join(cwd, 'missing') })).rejects.toThrow(/cwd/)
+    await expect(service.create({ cwd: join(cwd, 'missing') })).rejects.toThrow(/cwd/)
+    await service.create({ name: '重复名', cwd })
+    await expect(service.create({ name: '重复名', cwd })).rejects.toThrow(/exists/)
+  })
+
+  it('lists pi models once and caches the result for the Host lifetime (T6.2)', async () => {
+    const { service, piModelQueries } = await setup()
+    const first = await service.piModels()
+    expect(first.models).toEqual([{ provider: 'stub', modelId: 'stub-chat', name: 'Stub Chat' }])
+    await service.piModels()
+    expect(piModelQueries.count).toBe(1)
+  })
+
+  it('creates with wizard fields: type defaults, avatar, model, thinking (T6.3)', async () => {
+    const { service, store, cwd } = await setup()
+    const view = await service.create({ cwd, name: '小明', avatar: '🤖', piModel: { provider: 'deepseek', modelId: 'deepseek-chat' }, thinking: 'high' })
+    expect(view).toMatchObject({ name: '小明', avatar: '🤖', type: 'pi-coder', piModel: { provider: 'deepseek', modelId: 'deepseek-chat' }, thinking: 'high' })
+    expect(store.get(view.id)?.description).toContain('数字程序员')
   })
 
   it('updates and deletes employees, disposing any live child on delete', async () => {
