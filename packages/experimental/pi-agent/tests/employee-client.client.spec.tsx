@@ -4,7 +4,7 @@ import { createElement } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { makeTranslate, RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { bindSnapshotSelector, makeTranslate, RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -12,6 +12,8 @@ import type { EmployeeCreateRequest, EmployeeModelOption, EmployeeView } from '.
 import { createEmployeeSource, type EmployeeSource } from '../src/client/employee-source.ts'
 import { CreateEmployeeMenuItem } from '../src/client/CreateEmployeeMenuItem.tsx'
 import { EmployeeCreateDialogHost } from '../src/client/EmployeeCreateDialog.tsx'
+import { EmployeeDismissDialogHost } from '../src/client/EmployeeDismissDialog.tsx'
+import type { DismissRequest } from '../src/client/employee-source.ts'
 import { EmployeeAvatarBadge } from '../src/client/EmployeeAvatarBadge.tsx'
 import { apply as clientApply, inject as clientInject } from '../src/client/index.ts'
 import { en } from '../src/client/locales.ts'
@@ -52,20 +54,33 @@ describe('client plugin assembly', () => {
         piModels: vi.fn(async () => ({ ok: true as const, value: { models: [] } })),
       },
     })
-    ctx.provide('uiWorkspace', { pickDirectory: vi.fn(async () => null) } as never)
+    ctx.provide('uiWorkspace', {
+      pickDirectory: vi.fn(async () => null),
+      archiveSession: vi.fn(async () => undefined),
+    } as never)
+    const menus: { id: string; resolve: (target: { sessionId: string; displayTitle: string }) => unknown[] }[] = []
+    ctx.provide('contextMenus', { register: (contribution: { id: string; resolve: (target: { sessionId: string; displayTitle: string }) => unknown[] }) => { menus.push(contribution); return () => undefined } } as never)
     const fiber = await ctx.plugin({ inject: [...clientInject], apply: clientApply })
-    return { ctx, fiber, list }
+    return { ctx, fiber, list, menus }
   }
 
   it('registers the create-menu row, the wizard overlay, and the avatar mark, and reads the directory once', async () => {
-    const { ctx, list } = await mountPlugin([employee()])
+    const { ctx, list, menus } = await mountPlugin([employee({ sessionId: 'session-1' })])
     // The contributions mount on the inner fiber once remote.employee unparks.
     await waitFor(() => {
       expect(ctx.slots.entries('sidebar.workspaces.group.create.item').map(entry => entry.options.id)).toEqual(['pi-coder'])
-      expect(ctx.slots.entries('shell.overlay').map(entry => entry.options.id)).toEqual(['pi-agent-create-dialog'])
+      expect(ctx.slots.entries('shell.overlay').map(entry => entry.options.id))
+        .toEqual(['pi-agent-create-dialog', 'pi-agent-dismiss-dialog'])
       expect(ctx.slots.entries('sidebar.session.row.leading').map(entry => entry.options.id)).toEqual(['pi-employee-avatar'])
     })
     await waitFor(() => { expect(list).toHaveBeenCalledOnce() })
+    // The Session context menu carries the dismiss row only for employee sessions.
+    const dismissMenu = menus.find(menu => menu.id === 'employee.dismiss')
+    expect(dismissMenu).toBeDefined()
+    const bound = dismissMenu!.resolve({ sessionId: 'session-1', displayTitle: 'x' }) as readonly { id: string }[]
+    expect(bound.map(action => action.id)).toEqual(['dismiss'])
+    const stranger = dismissMenu!.resolve({ sessionId: 'session-other', displayTitle: 'x' })
+    expect(stranger).toEqual([])
   })
 })
 
@@ -115,8 +130,8 @@ describe('EmployeeCreateDialogHost', () => {
   function mount(source: EmployeeSource, create: Create = vi.fn<Create>()) {
     const openSession = vi.fn()
     const view = render(createElement(EmployeeCreateDialogHost, {
-      useWizard: (select: (up: boolean) => unknown) => select(source.hooks.wizard.getSnapshot()),
-      useCreating: (select: (busy: boolean) => unknown) => select(source.hooks.creating.getSnapshot()),
+      useWizard: bindSnapshotSelector(source.hooks.wizard),
+      useCreating: bindSnapshotSelector(source.hooks.creating),
       create,
       listModels: vi.fn(async () => ({ ok: true as const, value: { models } })),
       pickDirectory: vi.fn(async () => null),
@@ -194,5 +209,55 @@ describe('EmployeeCreateDialogHost', () => {
 
     await waitFor(() => { expect(screen.getByRole('alert').textContent).toContain('no such directory') })
     expect(source.hooks.wizard.getSnapshot()).toBe(true)
+  })
+})
+
+describe('EmployeeDismissDialogHost', () => {
+  type Dismiss = (request: DismissRequest) => Promise<RemoteResult<{ deleted: true }>>
+
+  /** Mount the confirmation host over a pending request. */
+  function mount(source: EmployeeSource, dismiss: Dismiss = vi.fn<Dismiss>(async () => ({ ok: true as const, value: { deleted: true } }))) {
+    const view = render(createElement(EmployeeDismissDialogHost, {
+      usePending: bindSnapshotSelector(source.hooks.pendingDismiss),
+      dismiss,
+      close: () => { source.clearDismiss() },
+      t,
+    } as never))
+    return { view, dismiss }
+  }
+
+  it('renders nothing without a pending request', () => {
+    const source = createEmployeeSource()
+    const { view } = mount(source)
+    expect(view.container.textContent).toBe('')
+  })
+
+  it('deletes the employee and archives its session on confirm', async () => {
+    const source = createEmployeeSource()
+    source.setWizard(false)
+    source.requestDismiss({ employeeId: 'abcd1234', sessionId: SessionId('session-1'), name: '数字程序员9' })
+    const dismiss = vi.fn<Dismiss>(async () => ({ ok: true as const, value: { deleted: true } }))
+    const { openSession } = { openSession: vi.fn() }
+    void openSession
+    mount(source, dismiss)
+
+    fireEvent.click(screen.getByRole('button', { name: en['dismiss.confirm'] }))
+    await waitFor(() => { expect(dismiss).toHaveBeenCalledWith({ employeeId: 'abcd1234', sessionId: SessionId('session-1'), name: '数字程序员9' }) })
+    await waitFor(() => { expect(source.hooks.pendingDismiss.getSnapshot()).toBeNull() })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('shows the Host failure and keeps the confirmation up', async () => {
+    const source = createEmployeeSource()
+    source.requestDismiss({ employeeId: 'abcd1234', sessionId: SessionId('session-1'), name: '数字程序员9' })
+    const dismiss = vi.fn<Dismiss>(async () => ({
+      ok: false as const,
+      error: new RemoteError('gateway/internal', 'employee busy', {}),
+    }))
+    mount(source, dismiss)
+
+    fireEvent.click(screen.getByRole('button', { name: en['dismiss.confirm'] }))
+    await waitFor(() => { expect(screen.getByRole('alert').textContent).toContain('employee busy') })
+    expect(source.hooks.pendingDismiss.getSnapshot()).not.toBeNull()
   })
 })

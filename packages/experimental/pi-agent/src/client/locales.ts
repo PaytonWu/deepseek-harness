@@ -37,6 +37,11 @@ export const en = {
   'create.error': 'Could not create the digital coder.',
   'create.cwdRequired': 'Enter a working directory.',
   'hover.cwd': 'Coding directory',
+  'menu.dismiss': 'Dismiss employee',
+  'dismiss.title': 'Dismiss "{name}"?',
+  'dismiss.body': 'This stops the employee agent, deletes the employee record, and archives the session.',
+  'dismiss.confirm': 'Dismiss',
+  'dismiss.failed': 'Dismissal failed:',
   'avatar.aria': 'Digital employee avatar',
 } as const
 
@@ -65,6 +70,11 @@ const zh = {
   'create.error': '无法创建数字程序员。',
   'create.cwdRequired': '请输入工作目录。',
   'hover.cwd': '编码目录',
+  'menu.dismiss': '解雇数字员工',
+  'dismiss.title': '解雇「{name}」？',
+  'dismiss.body': '将停止其代理进程、删除员工记录，并归档其会话。',
+  'dismiss.confirm': '解雇',
+  'dismiss.failed': '解雇失败：',
   'avatar.aria': '数字员工头像',
 } satisfies Record<keyof typeof en, string>
 
@@ -93,6 +103,11 @@ const ja = {
   'create.error': 'デジタルプログラマーを作成できませんでした。',
   'create.cwdRequired': '作業ディレクトリを入力してください。',
   'hover.cwd': 'コーディングディレクトリ',
+  'menu.dismiss': 'デジタル従業員を解雇',
+  'dismiss.title': '「{name}」を解雇しますか？',
+  'dismiss.body': '従業員のエージェントを停止し、記録を削除して、セッションをアーカイブします。',
+  'dismiss.confirm': '解雇',
+  'dismiss.failed': '解雇に失敗しました：',
   'avatar.aria': 'デジタル従業員のアバター',
 } satisfies Record<keyof typeof en, string>
 
@@ -121,6 +136,11 @@ const es = {
   'create.error': 'No se pudo crear el programador digital.',
   'create.cwdRequired': 'Introduce un directorio de trabajo.',
   'hover.cwd': 'Directorio de código',
+  'menu.dismiss': 'Despedir empleado',
+  'dismiss.title': '¿Despedir a «{name}»?',
+  'dismiss.body': 'Esto detiene su agente, elimina el registro del empleado y archiva la sesión.',
+  'dismiss.confirm': 'Despedir',
+  'dismiss.failed': 'No se pudo despedir:',
   'avatar.aria': 'Avatar del empleado digital',
 } satisfies Record<keyof typeof en, string>
 
@@ -149,6 +169,11 @@ const fr = {
   'create.error': 'Impossible de créer le programmeur numérique.',
   'create.cwdRequired': 'Saisissez un répertoire de travail.',
   'hover.cwd': 'Répertoire de code',
+  'menu.dismiss': 'Renvoyer l’employé',
+  'dismiss.title': 'Renvoyer « {name} » ?',
+  'dismiss.body': 'Cela arrête son agent, supprime la fiche de l’employé et archive sa session.',
+  'dismiss.confirm': 'Renvoyer',
+  'dismiss.failed': 'Échec du renvoi :',
   'avatar.aria': "Avatar de l'employé numérique",
 } satisfies Record<keyof typeof en, string>
 
@@ -177,6 +202,11 @@ const de = {
   'create.error': 'Der digitale Programmierer konnte nicht erstellt werden.',
   'create.cwdRequired': 'Gib ein Arbeitsverzeichnis ein.',
   'hover.cwd': 'Code-Verzeichnis',
+  'menu.dismiss': 'Mitarbeiter entlassen',
+  'dismiss.title': '„{name}“ entlassen?',
+  'dismiss.body': 'Dies stoppt den Agenten, löscht den Mitarbeiter-Eintrag und archiviert die Sitzung.',
+  'dismiss.confirm': 'Entlassen',
+  'dismiss.failed': 'Entlassen fehlgeschlagen:',
   'avatar.aria': 'Avatar des digitalen Mitarbeiters',
 } satisfies Record<keyof typeof en, string>
 
@@ -205,6 +235,11 @@ const ru = {
   'create.error': 'Не удалось создать цифрового программиста.',
   'create.cwdRequired': 'Введите рабочий каталог.',
   'hover.cwd': 'Каталог кода',
+  'menu.dismiss': 'Уволить сотрудника',
+  'dismiss.title': 'Уволить «{name}»?',
+  'dismiss.body': 'Это остановит агента, удалит запись сотрудника и архивирует сессию.',
+  'dismiss.confirm': 'Уволить',
+  'dismiss.failed': 'Не удалось уволить:',
   'avatar.aria': 'Аватар цифрового сотрудника',
 } satisfies Record<keyof typeof en, string>
 
@@ -233,6 +268,11 @@ const pt = {
   'create.error': 'Não foi possível criar o programador digital.',
   'create.cwdRequired': 'Informe um diretório de trabalho.',
   'hover.cwd': 'Diretório de código',
+  'menu.dismiss': 'Demitir funcionário',
+  'dismiss.title': 'Demitir «{name}»?',
+  'dismiss.body': 'Isso interrompe o agente, exclui o registro do funcionário e arquiva a sessão.',
+  'dismiss.confirm': 'Demitir',
+  'dismiss.failed': 'Falha ao demitir:',
   'avatar.aria': 'Avatar do funcionário digital',
 } satisfies Record<keyof typeof en, string>
 

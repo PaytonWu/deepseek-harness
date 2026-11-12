@@ -1015,11 +1015,20 @@ describe('workspace browser rows', () => {
     cleanup()
     openMenu.mockClear()
     renderFactorySlot.mockClear()
-    render(<SessionNodeItem node={{ ...node, blank: true }} currentId={sid('other')} now={0} onOpen={onOpen}
+    // An untitled blank keeps its placeholder contract: no menu target.
+    render(<SessionNodeItem node={{ ...node, blank: true, title: '' }} currentId={sid('other')} now={0} onOpen={onOpen}
       useContextMenu={contextMenuHook(openMenu)} renderFactorySlot={renderFactorySlot} t={t} />)
     fireEvent.contextMenu(screen.getByRole('treeitem'))
     expect(openMenu).not.toHaveBeenCalled()
     expect(renderFactorySlot).not.toHaveBeenCalled()
+
+    // A titled blank (a created digital employee awaiting its first message)
+    // is a real entity: right-click targets it like any Session row.
+    cleanup()
+    render(<SessionNodeItem node={{ ...node, blank: true }} currentId={sid('other')} now={0} onOpen={onOpen}
+      useContextMenu={contextMenuHook(openMenu)} renderFactorySlot={renderFactorySlot} t={t} />)
+    fireEvent.contextMenu(screen.getByRole('treeitem'), { clientX: 31, clientY: 47 })
+    expect(openMenu).toHaveBeenLastCalledWith({ ...target, value: { ...target.value, displayTitle: 'One' } }, { x: 31, y: 47 })
   })
 
   it('renders the row action list inside the actions area after the menu trigger', () => {
