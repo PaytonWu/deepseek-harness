@@ -7,7 +7,9 @@ import type { EmployeeRecord } from '../src/employee-store.ts'
 function employee(overrides: Partial<EmployeeRecord> = {}): EmployeeRecord {
   return {
     id: 'abcd1234',
+    type: 'pi-coder',
     name: '数字程序员',
+    avatar: '🧑‍💻',
     description: 'You write code.',
     cwd: 'D:/work',
     createdAt: '2026-11-11T00:00:00.000Z',
