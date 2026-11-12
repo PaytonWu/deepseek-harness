@@ -51,14 +51,26 @@ describe('EmployeeStore (T1.2, T1.3) create', () => {
     expect(reloaded.list().map(employee => employee.name)).toEqual(['数字程序员', 'Reviewer'])
   })
 
-  it('rejects an empty name', async () => {
+  it('fills the type defaults: incremented name, preset emoji and description (T6.1)', async () => {
     const { store, cwd } = await fixture()
-    await expect(store.create({ name: '', description: 'd', cwd })).rejects.toThrow(/name/)
+    const first = await store.create({ cwd })
+    expect(first).toMatchObject({ type: 'pi-coder', name: '数字程序员 1', avatar: '🧑‍💻' })
+    expect(first.description).toContain('数字程序员')
+    const second = await store.create({ cwd })
+    expect(second.name).toBe('数字程序员 2')
   })
 
-  it('rejects an empty description', async () => {
+  it('stores avatar, piModel, and thinking overrides (T6.1)', async () => {
     const { store, cwd } = await fixture()
-    await expect(store.create({ name: 'n', description: '   ', cwd })).rejects.toThrow(/description/)
+    const created = await store.create({ cwd, name: '小明', avatar: '🤖', piModel: { provider: 'deepseek', modelId: 'deepseek-chat' }, thinking: 'high' })
+    expect(created).toMatchObject({ avatar: '🤖', piModel: { provider: 'deepseek', modelId: 'deepseek-chat' }, thinking: 'high' })
+  })
+
+  it('backfills legacy records without type or avatar on load (T6.1)', async () => {
+    const { file, cwd } = await fixture()
+    await writeFile(file, JSON.stringify([{ id: 'abcd1234', name: '旧员工', description: 'd', cwd, createdAt: '2026-01-01T00:00:00.000Z' }]), 'utf8')
+    const reloaded = EmployeeStore.load(file)
+    expect(reloaded.get('abcd1234')).toMatchObject({ type: 'pi-coder', avatar: '🧑‍💻' })
   })
 
   it('rejects a cwd that is not an existing directory', async () => {
@@ -73,8 +85,8 @@ describe('EmployeeStore (T1.2, T1.3) create', () => {
 
   it('rejects a duplicate name', async () => {
     const { store, cwd } = await fixture()
-    await store.create({ name: '数字程序员', description: 'd', cwd })
-    await expect(store.create({ name: '数字程序员', description: 'other', cwd })).rejects.toThrow(/exists/)
+    await store.create({ name: 'n', description: 'd', cwd })
+    await expect(store.create({ name: 'n', description: 'other', cwd })).rejects.toThrow(/exists/)
   })
 
   it('accepts an existing imported pi session file and stores it', async () => {

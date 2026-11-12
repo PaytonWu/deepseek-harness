@@ -235,6 +235,17 @@ export class PiRpcChild {
     this.runsSettled = 0
   }
 
+  /** Apply one thinking level for this child's runs. */
+  async setThinking(level: string): Promise<void> {
+    await this.command('set_thinking_level', { level })
+  }
+
+  /** List the pi-side models this child can select. */
+  async availableModels(): Promise<readonly { id: string; name: string; provider: string }[]> {
+    const data = await this.command<{ models?: Array<{ id: string; name: string; provider: string }> }>('get_available_models')
+    return data.models ?? []
+  }
+
   /** Last assistant text, bounded; `undefined` before any answer. */
   async lastAssistantText(): Promise<string | undefined> {
     const data = await this.command<{ text?: string | null }>('get_last_assistant_text')

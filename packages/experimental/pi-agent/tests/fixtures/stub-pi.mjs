@@ -24,6 +24,7 @@ writeFileSync(sessionFile, `{"stub":true,"resumed":${resumed !== undefined}}\n`)
 
 let streaming = false
 let answer = resumed === undefined ? null : 'RESUMED'
+let thinkingLevel = 'medium'
 
 function send(record) {
   process.stdout.write(`${JSON.stringify(record)}\n`)
@@ -79,6 +80,16 @@ function handle(record) {
         answer = 'ABORTED'
         send({ type: 'agent_settled', aborted: true })
       }
+      break
+    case 'get_available_models':
+      respond(record.id, 'get_available_models', { models: [
+        { id: 'stub-chat', name: 'Stub Chat', provider: 'stub' },
+        { id: 'stub-reasoner', name: 'Stub Reasoner', provider: 'stub' },
+      ] })
+      break
+    case 'set_thinking_level':
+      thinkingLevel = record.level
+      respond(record.id, 'set_thinking_level', {})
       break
     case 'get_last_assistant_text':
       respond(record.id, 'get_last_assistant_text', { text: answer })

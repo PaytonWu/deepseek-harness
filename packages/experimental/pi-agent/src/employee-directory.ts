@@ -23,11 +23,14 @@ export interface EmployeeDirectoryDeps {
   readonly store: EmployeeStore
   /** Terminate the employee's live pi child, when one exists. */
   readonly disposeChild: (employeeId: string) => Promise<void>
+  /** Spawn one short-lived pi child and list its selectable models. */
+  readonly listPiModels: () => Promise<readonly { provider: string; modelId: string; name: string }[]>
 }
 
 /** Employee CRUD and session orchestration over the Typert gateway. */
 export class EmployeeDirectoryService extends TypertRemoteService {
   private workspace?: Workspace
+  private modelsPromise: Promise<{ models: readonly { provider: string; modelId: string; name: string }[] }> | undefined
 
   constructor(ctx: Context, private readonly deps: EmployeeDirectoryDeps, private readonly groupTitle: string) {
     super(ctx, 'employee')
@@ -61,6 +64,21 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     return employeeView(bound)
   }
 
+  /**
+   * List the pi-side models available to employees. The first call spawns a
+   * short-lived pi child; the result is cached for the Host lifetime.
+   */
+  @Remote('piModels')
+  async piModels(): Promise<{ models: readonly { provider: string; modelId: string; name: string }[] }> {
+    if (this.modelsPromise === undefined) {
+      this.modelsPromise = this.queryPiModels().catch((error: unknown) => {
+        this.modelsPromise = undefined
+        throw error
+      })
+    }
+    return this.modelsPromise
+  }
+
   /** Patch one employee; unknown ids reject. */
   @Remote('update')
   async update(request: EmployeeUpdateRequest): Promise<EmployeeView> {
@@ -79,6 +97,12 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     return { deleted: true }
   }
 
+  /** Spawn one short-lived pi child and ask it for its selectable models. */
+  private async queryPiModels(): Promise<{ models: readonly { provider: string; modelId: string; name: string }[] }> {
+    const models = await this.deps.listPiModels()
+    return { models }
+  }
+
   /** Resolve the employee group Workspace, creating it once. */
   private async ensureWorkspace(): Promise<Workspace> {
     if (this.workspace !== undefined) return this.workspace
@@ -94,9 +118,13 @@ export class EmployeeDirectoryService extends TypertRemoteService {
 function employeeView(record: EmployeeRecord): EmployeeView {
   return {
     id: record.id,
+    type: record.type,
     name: record.name,
+    avatar: record.avatar,
     description: record.description,
     cwd: record.cwd,
+    ...record.piModel !== undefined ? { piModel: record.piModel } : {},
+    ...record.thinking !== undefined ? { thinking: record.thinking } : {},
     ...record.piSessionFile !== undefined ? { piSessionFile: record.piSessionFile } : {},
     ...record.sessionId !== undefined ? { sessionId: record.sessionId } : {},
     createdAt: record.createdAt,

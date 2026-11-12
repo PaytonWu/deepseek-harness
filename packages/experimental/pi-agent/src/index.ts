@@ -16,7 +16,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolCallView } from '@deepseek-ai/dsh-tools'
 import { PiChildRegistry, ensurePiAgentDirs } from './registry.ts'
 import type { PiChildRecord } from './registry.ts'
-import type { PiRpcChild } from './rpc.ts'
+import { PiRpcChild } from './rpc.ts'
 import { PiChildManager } from './manager.ts'
 import { EmployeeStore } from './employee-store.ts'
 import type { EmployeeRecord } from './employee-store.ts'
@@ -135,7 +135,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const store = EmployeeStore.load(resolve(paths.root, 'employees.json'))
   const registry = PiChildRegistry.load({ file: paths.registryFile, sessionsDir: paths.sessions })
   await registry.sweepOrphans((line) => { ctx.logger.warn(line) })
-  const manager = new PiChildManager(registry, {
+  const spawnOptions = {
     command,
     args: config.args ?? [],
     sessionDir: paths.sessions,
@@ -143,7 +143,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...config.provider !== undefined ? { provider: config.provider } : {},
     ...config.model !== undefined ? { model: config.model } : {},
     env: config.env ?? {},
-  })
+  }
+  const manager = new PiChildManager(registry, spawnOptions)
 
   ctx.effect(() => () => { void manager.disposeAll() })
 
@@ -175,6 +176,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     disposeChild: async (employeeId) => {
       const live = manager.live(employeeId)
       if (live !== undefined) await live.dispose()
+    },
+    listPiModels: async () => {
+      const probe = PiRpcChild.start({ ...spawnOptions, cwd: paths.root })
+      try {
+        await probe.ready()
+        const models = await probe.availableModels()
+        return models.map(model => ({ provider: model.provider, modelId: model.id, name: model.name }))
+      } finally {
+        await probe.dispose().catch(() => undefined)
+      }
     },
   }, config.groupTitle ?? '我的数字员工')
   ctx.inject(['commands'], (commandCtx) => {
