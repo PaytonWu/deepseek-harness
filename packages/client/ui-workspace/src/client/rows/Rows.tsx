@@ -52,9 +52,11 @@ type RowRenderSlots = PropsRenderSlots<
   | 'sidebar.session.row.hover'
 >['renderSlot']
 
-/** Row display title: blank rows show the localized New Session label. */
+/** Row display title: an untitled blank shows the localized New Session label; a titled blank
+ * (a created digital employee awaiting its first message) shows that title. */
 function displayTitle(node: SessionNode, t: RowTranslate): string {
-  return node.blank ? t('session.new') : (node.title || t('session.untitled'))
+  if (node.title !== '') return node.title
+  return node.blank ? t('session.new') : t('session.untitled')
 }
 
 /* Overflow this small hides no meaningful tail; scrolling for it reads as an
@@ -722,7 +724,7 @@ export function SessionNodeItem({
           blank — the grayed row carries the archived look — and their live
           status stays on the hover card only. */}
       <span className={css.slot}>
-        {!row.archived && !row.blank && (showStatus
+        {!row.archived && (showStatus
           ? <SessionStatusDots statuses={statuses} />
           : renderSlot('sidebar.session.row.leading', { sessionId: node.id }))}
       </span>

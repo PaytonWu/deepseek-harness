@@ -930,16 +930,17 @@ describe('workspace browser rows', () => {
     vi.useFakeTimers()
     try {
       const node: SessionNode = {
-        id: sid('s-blank'), title: 'ignored', blank: true, running: false,
+        id: sid('s-blank'), title: '', blank: true, running: false,
         runningSubagentCount: 0, completed: false, updatedAt: 0, pinned: false, archived: false,
       }
       const rendered = vi.fn()
       const renderSlot: RowRenderSlot = (name: RowSlotName) => { rendered(name); return null }
       render(<SessionNodeItem node={node} currentId={node.id} now={0} onOpen={vi.fn()} renderSlot={renderSlot} t={t} />)
-      // The placeholder has no content yet: no row verbs (neither list is
-      // asked for anything), no "now" stamp.
+      // The placeholder has no content yet: no row verbs (the action lists are
+      // not asked for anything) and no "now" stamp; the leading seat is still
+      // offered — occupants decide (an untitled blank has none).
       expect(screen.queryByRole('button', { name: /会话.*的操作/ })).toBeNull()
-      expect(rendered).not.toHaveBeenCalled()
+      expect(rendered).toHaveBeenCalledWith('sidebar.session.row.leading')
       expect(screen.queryByText('刚刚')).toBeNull()
       // The hover card keeps title + status but drops the timestamp line.
       const wrapper = screen.getByRole('treeitem').parentElement as HTMLElement
@@ -981,7 +982,7 @@ describe('workspace browser rows', () => {
     })
 
     it('shows the directory on a blank New Session card', () => {
-      hoverCard({ ...located, blank: true })
+      hoverCard({ ...located, blank: true, title: '' })
       expect(screen.getAllByText('新会话')).toHaveLength(2)
       expect(screen.getByText('~/project')).toBeTruthy()
     })
@@ -1357,10 +1358,12 @@ describe('workspace browser rows', () => {
     expect(onRenameRequest).toHaveBeenCalledWith(node.id, 'Named')
     expect(onOpen).toHaveBeenCalledWith(node.id)
 
-    // A blank placeholder has no content to rename: double-click is inert.
+    // A blank row keeps its double-click inert even when it carries a stored
+    // title (a created digital employee awaiting its first message): the title
+    // renders, but there is no content to rename through the row gesture.
     view.rerender(<SessionNodeItem node={{ ...node, blank: true }} currentId={undefined} now={0}
       onOpen={onOpen} onRenameRequest={onRenameRequest} t={t} />)
-    realDoubleClick(screen.getByText('新会话'))
+    realDoubleClick(screen.getByText('Named'))
     expect(onRenameRequest).toHaveBeenCalledOnce()
   })
 
@@ -1529,10 +1532,10 @@ describe('session row decoration seats', () => {
     expect(renderSlot).not.toHaveBeenCalledWith('sidebar.session.row.leading', expect.anything())
   })
 
-  it('never offers the seat for a provisional blank row', () => {
+  it('offers the leading seat to a blank row too (a created employee is blank until its first message)', () => {
     const renderSlot = seatSpy()
     renderRow({ ...idle, blank: true }, renderSlot)
-    expect(renderSlot).not.toHaveBeenCalledWith('sidebar.session.row.leading', expect.anything())
+    expect(renderSlot).toHaveBeenCalledWith('sidebar.session.row.leading', { sessionId: idle.id })
   })
 
   it('renders the schedule section between the relative time and the trailing status line', () => {
