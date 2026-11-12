@@ -16,13 +16,18 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 // Type-only: the 'sidebar.workspaces.group.create.item' and
 // 'sidebar.session.row.leading' SlotMap rows and ctx.uiWorkspace.
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
+// Type-only: the 'session' ContextMenuTargetMap row and MenuAction types, and
+// ctx.contextMenus on the client root.
+import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { EmployeeCreateRequest } from '../types.ts'
-import { createEmployeeSource } from './employee-source.ts'
+import { createEmployeeSource, type DismissRequest } from './employee-source.ts'
 import { CreateEmployeeMenuItem } from './CreateEmployeeMenuItem.tsx'
 import { EmployeeCreateDialogHost } from './EmployeeCreateDialog.tsx'
 import { EmployeeAvatarBadge } from './EmployeeAvatarBadge.tsx'
 import { EmployeeHoverCwd } from './EmployeeHoverCwd.tsx'
+import { EmployeeDismissDialogHost } from './EmployeeDismissDialog.tsx'
+import { IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { dictionaries, NS, type PiAgentClientKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -33,7 +38,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required services: the Remote service, the locale service, and the slot registry. */
-export const inject = ['locale', 'remote', 'slots']
+export const inject = ['contextMenus', 'locale', 'remote', 'slots']
 
 /**
  * Mount this package's generated Remote namespace, then register the shared
@@ -43,7 +48,7 @@ export const inject = ['locale', 'remote', 'slots']
  */
 export function apply(ctx: Context): () => Promise<void> {
   const transport = ctx.plugin(async (owner) => { await owner.remote.$mount(piRemote) })
-  const ui = ctx.inject(['locale', 'remote.employee', 'slots', 'uiWorkspace'], (scope) => {
+  const ui = ctx.inject(['contextMenus', 'locale', 'remote.employee', 'slots', 'uiWorkspace'], (scope) => {
     scope.effect(() => scope.locale.register(NS, dictionaries), 'pi-agent: dictionaries')
     const source = createEmployeeSource()
     /** Read the directory back; a settled read replaces the projection. */
@@ -85,6 +90,39 @@ export function apply(ctx: Context): () => Promise<void> {
       name: 'sidebar.session.row.hover', id: 'pi-employee-cwd', order: 20, locale: NS,
       inject: () => ({ hooks: { employees: source.hooks.employees } }),
     }, EmployeeHoverCwd)), 'pi-agent: hover coding directory')
+    scope.effect(() => scope.slots.inject('contextMenu.icon', function* () {
+      yield scope.slots.register({ name: 'contextMenu.icon', key: 'pi-agent.dismiss' }, IconTrashOutlineRegular)
+    }), 'pi-agent: dismiss icon')
+    scope.effect(() => scope.contextMenus.register({
+      id: 'employee.dismiss', target: 'session', order: 650,
+      observe: () => [source.hooks.employees],
+      resolve: (target) => {
+        const employee = source.hooks.employees.getSnapshot()
+          .find(row => row.sessionId !== undefined && row.sessionId === target.sessionId)
+        if (employee === undefined) return []
+        const { id: employeeId, sessionId, name } = employee
+        if (sessionId === undefined) return []
+        return [{
+          id: 'dismiss', label: scope.locale.bind(NS)('menu.dismiss'), icon: { key: 'pi-agent.dismiss' },
+          danger: true, separatorBefore: true,
+          run: () => { source.requestDismiss({ employeeId, sessionId: SessionId(sessionId), name }) },
+        }]
+      },
+    }), 'pi-agent: dismiss menu')
+    scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
+      name: 'shell.overlay', id: 'pi-agent-dismiss-dialog', locale: NS,
+      inject: () => ({
+        hooks: { pending: source.hooks.pendingDismiss },
+        dismiss: async (request: DismissRequest) => {
+          const result = await scope.remote.employee.delete({ id: request.employeeId })
+          if (!result.ok) return result
+          await scope.uiWorkspace.archiveSession(request.sessionId, { stopActivity: true })
+          await refresh()
+          return result
+        },
+        close: () => { source.clearDismiss() },
+      }),
+    }, EmployeeDismissDialogHost)), 'pi-agent: dismiss dialog')
   })
   return async () => {
     await ui.dispose()
