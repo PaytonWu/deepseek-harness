@@ -182,16 +182,30 @@ export class PiRpcChild {
 
   /** Send one user message; a streaming child queues it as a follow-up. */
   async sendPrompt(text: string): Promise<string> {
-    const data = await this.command<{ disposition?: string }>('prompt', {
-      message: text,
-      ...this.isStreaming ? { streamingBehavior: 'followUp' as const } : {},
-    })
+    const data = await this.sendPromptOnce(text)
     if (data.disposition === 'started' && !this.isStreaming && !this.optimisticStart) {
       // the run's agent_start event may still be in flight; count it optimistically
       this.optimisticStart = true
       this.runsStarted += 1
     }
     return data.disposition ?? 'accepted'
+  }
+
+  /** One prompt attempt; a freshly started pi can reject the very first prompt while its extensions load, so retry once. */
+  private async sendPromptOnce(text: string): Promise<{ disposition?: string }> {
+    try {
+      return await this.command<{ disposition?: string }>('prompt', {
+        message: text,
+        ...this.isStreaming ? { streamingBehavior: 'followUp' as const } : {},
+      })
+    } catch (error) {
+      if (this.exited) throw error
+      await new Promise((resolve) => { setTimeout(resolve, 400) })
+      return await this.command<{ disposition?: string }>('prompt', {
+        message: text,
+        streamingBehavior: 'followUp',
+      })
+    }
   }
 
   /** Drop queued messages and abort the current run; bounds the idle wait. */

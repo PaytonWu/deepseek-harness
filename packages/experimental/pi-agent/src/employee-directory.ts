@@ -46,11 +46,14 @@ export class EmployeeDirectoryService extends TypertRemoteService {
   @Remote('create')
   async create(request: EmployeeCreateRequest): Promise<EmployeeView> {
     const employee = await this.deps.store.create(request)
+    // The session's dsh-side cwd is the group workspace directory, because a
+    // Workspace accounts sessions by directory; the employee's own cwd is a pi
+    // spawn input only and never has to live inside the group directory.
     const workspace = await this.ensureWorkspace()
     const sessionId = SessionId(`session-${randomUUID()}`)
     await this.ctx.agents.create({
       sessionId,
-      meta: { cwd: employee.cwd },
+      meta: { cwd: workspace.path },
       agentOptions: { provider: PI_EMPLOYEE_PROVIDER, model: employee.id },
     })
     await workspace.attachSession(sessionId)

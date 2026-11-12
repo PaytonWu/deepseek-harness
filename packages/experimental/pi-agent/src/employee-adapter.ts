@@ -77,6 +77,8 @@ function lastUserText(options: GenerateOptions): string {
   for (let index = options.messages.length - 1; index >= 0; index -= 1) {
     const message = options.messages[index]
     if (message?.role !== 'user') continue
+    const source = (message as { source?: { kind?: string } }).source
+    if (source?.kind === 'runtime-context') continue
     const content = message.content
     if (typeof content === 'string') return content
     if (!Array.isArray(content)) continue

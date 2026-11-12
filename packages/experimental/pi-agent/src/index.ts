@@ -147,14 +147,24 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
 
   ctx.effect(() => () => { void manager.disposeAll() })
 
-  const ensureChild = async (employee: EmployeeRecord) => {
+  const ensureInFlight = new Map<string, Promise<{ child: PiRpcChild; createdFresh: boolean }>>()
+  const ensureChild = async (employee: EmployeeRecord): Promise<{ child: PiRpcChild; createdFresh: boolean }> => {
     const existing = manager.live(employee.id)
     if (existing !== undefined) return { child: existing, createdFresh: false }
-    const ensured = await manager.ensureForEmployee(employee)
-    if (ensured.createdFresh && ensured.child.sessionFile !== undefined) {
-      await store.update(employee.id, { piSessionFile: ensured.child.sessionFile })
+    const inFlight = ensureInFlight.get(employee.id)
+    if (inFlight !== undefined) return inFlight
+    const ensured = manager.ensureForEmployee(employee).then(async (result) => {
+      if (result.createdFresh && result.child.sessionFile !== undefined) {
+        await store.bindSessionFile(employee.id, result.child.sessionFile)
+      }
+      return result
+    })
+    ensureInFlight.set(employee.id, ensured)
+    try {
+      return await ensured
+    } finally {
+      ensureInFlight.delete(employee.id)
     }
-    return ensured
   }
   ctx.llm.registerAdapter([PI_EMPLOYEE_PROVIDER], new PiEmployeeAdapter({
     employeeOf: employeeId => store.get(employeeId),
