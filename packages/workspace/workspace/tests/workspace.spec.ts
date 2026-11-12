@@ -793,6 +793,7 @@ describe('header-validated membership projection', () => {
     const again = await harness({ pool: initial.pool, sessions })
     onTestFinished(() => again.ctx.fiber.dispose())
     expect(again.registry.get(workspace.id)!.sessionIds).toEqual(['first', 'second'])
+
   })
 
   it('preserves an owned session when its symlink target disappears without bootstrapping missing paths', async () => {
@@ -1545,3 +1546,25 @@ declare module '@deepseek-ai/dsh-workspace/types' {
     'probe-items': true
   }
 }
+
+describe('workspace default-blank exclusion', () => {
+
+  it('persists and clears the default-blank exclusion across restarts', async () => {
+    const dir = await makeDir('blank-exclusion')
+    const first = await harness({ pool: new MemoryMediaPool(), sessions: [] })
+    onTestFinished(() => first.ctx.fiber.dispose())
+    const workspace = await first.registry.create(dir)
+    expect(workspace.defaultBlankExcluded).toBe(false)
+    await workspace.setDefaultBlankExcluded(true)
+    expect(storedRecord(first.pool, workspace.id).defaultBlankExcluded).toBe(true)
+    await first.ctx.fiber.dispose()
+
+    const second = await harness({ pool: first.pool, sessions: [] })
+    onTestFinished(() => second.ctx.fiber.dispose())
+    expect(second.registry.get(workspace.id)!.defaultBlankExcluded).toBe(true)
+    const restored = second.registry.get(workspace.id)!
+    await restored.setDefaultBlankExcluded(false)
+    expect(storedRecord(second.pool, workspace.id).defaultBlankExcluded).toBeUndefined()
+    await rm(dir, { recursive: true })
+  })
+})

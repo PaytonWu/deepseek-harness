@@ -188,6 +188,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
     },
   }, config.groupTitle ?? '我的数字员工')
+  const warmup = async (): Promise<void> => { await directory.warmup() }
+  void warmup().catch(() => undefined)
   ctx.inject(['commands'], (commandCtx) => {
     commandCtx.effect(function* () {
       yield commandCtx.commands.register(newEmployeeCommand(input => directory.create(input)))

@@ -342,9 +342,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const workspace = this.workspaces.list.getSnapshot()
     const sessions = this.sessions.list.getSnapshot()
     const current = this.mainReference?.sessionId
+    // The unscoped path (no explicit Workspace) skips excluded Workspaces
+    // entirely — an excluded group never receives an implicitly placed blank.
     const currentWorkspaceId = current === undefined
       ? undefined
-      : workspace.items.find(item => item.sessionIds.includes(current))?.workspaceId
+      : workspace.items.find(item => item.sessionIds.includes(current) && item.defaultBlankExcluded !== true)?.workspaceId
     const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
       ? recentWorkspace(workspace.items, sessions.byId)
       : undefined
@@ -482,7 +484,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       && !workspaces.archivedSessionIds.includes(summary.id)) {
       sessionId = await this.restoreBlank(workspace.workspaceId, summary.id)
     }
-    let target = workspace?.workspaceId ?? recentWorkspace(workspaces.items, sessions.byId)
+    const savedWorkspaceTarget = workspace !== undefined && workspace.defaultBlankExcluded !== true
+      ? workspace.workspaceId : undefined
+    let target = savedWorkspaceTarget ?? recentWorkspace(workspaces.items, sessions.byId)
     if (target === undefined && workspaces.items.length === 0 && sessions.ids.length === 0) {
       const prepared = await this.initializeDefaultWorkspace(navigation)
       if (navigation.aborted) return
@@ -581,6 +585,7 @@ function recentWorkspace(
   let selected: WorkspaceId | undefined
   let selectedTime = Number.NEGATIVE_INFINITY
   for (const workspace of workspaces) {
+    if (workspace.defaultBlankExcluded === true) continue
     let latest = Number.NEGATIVE_INFINITY
     for (const sessionId of workspace.sessionIds) {
       const session = sessions[sessionId]

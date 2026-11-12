@@ -101,7 +101,7 @@
 - T6.4 ✅ ui-workspace 分组头新建菜单 slot（产品扩展点）：`sidebar.workspaces.group.create.item` list slot；close 回调走 owner props（跨插件 value import 被 client bundle purity 门禁禁止）；无注册项时 `+` 保持直接新建；rows 组件测试。
 - T6.5 ✅ pi-agent client 面（`/client` 入口 + `dsh.client` platform web + typert `/remote` 工件）：注册“数字程序员”菜单项 + 五字段对话框（emoji 徽章集、Host 目录选盘、`employee/piModels` 模型下拉、思考强度 SegmentedControl，挂 `shell.overlay`）+ 员工头像徽章（row leading）；8 语言字典；装配+组件测试（含 ui-workspace 88 测试回归）。
 - T6.6 ✅ live 验收（SMOKE-PASS，`apps/web/tests/pi-wizard-live.ts` 真浏览器驱动）：`+` → 菜单（新会话｜数字程序员）→ 五字段对话框 → 创建 → 分组下头像徽章行 → 一轮 pi 对话。两处实测修复：wizard host 的条件 hook 调用（React #310）与 client 侧 `remote.$mount(piRemote)` 命名空间挂载（cua 模式）；keyless 快照与无头 e2e 仍为延后项（需 hermetic 化 pi 模型清单）。用户实测追加修复：对话框 600px 宽度档 + Browse 走 uiWorkspace 注入；员工会话以员工名命名 + 向导导航失败可见；blank 可见性契约重定义（titled blank 始终可见/可搜索/挂徽章座位，untitled blank 保持原样）+ 头像选中态换真实设计 token + hover 卡显示员工编码目录。
-- 已知问题（boot 垃圾 blank）：应用每次启动会在「最近工作区」provision 一个空白会话；员工分组是唯一工作区时该 blank 落进 roster 分组并显示为「新会话」。客户端清扫（归档 unowned blank）经实测不可行——retention 标记在 Web 客户端列表上不可读，且归档动作本身触发新一轮 provision（churn），已回退；正确修复面在产品层（boot provision 的目标选择），暂缓。运营对策：保留至少一个普通工作区（monorepo/默认）使「最近工作区」不再指向员工分组。
+- boot 垃圾 blank ✅ 产品层修复：Workspace 记录新增 `defaultBlankExcluded` 标志（持久化 + WorkspaceView 透传）；ui-workspace 的 boot 恢复（restoreSelection）、无指定新建（startSession 的 current/recent 回退）与 recentWorkspace 选择器全部跳过 excluded 工作区，显式指定（分组头＋）不受影响；pi-agent 在 host 启动即物化分组并打标（warmup）。实测：多次刷新零供给，向导照常。此前的客户端清扫方案（归档 unowned blank）因 retention 标记在 Web 客户端不可读 + 归档触发 provision churn 而回退。
 
 交叉验证增补：N11↔T6.4、N12↔T6.1、N13↔T6.1/T6.5、N14↔T6.5、N15↔T6.2、N16↔T6.3；T6.6 对应 KR1/KR2 活体验收。
 

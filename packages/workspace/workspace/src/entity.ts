@@ -107,6 +107,17 @@ export class WorkspaceEntity implements Workspace {
     await this.mutate(record => ({ ...record, title }))
   }
 
+  /** Whether default-blank fallbacks skip this Workspace; see the record field. */
+  get defaultBlankExcluded(): boolean {
+    return this.record.defaultBlankExcluded === true
+  }
+
+  /** Set whether default-blank fallbacks skip this Workspace. */
+  async setDefaultBlankExcluded(excluded: boolean): Promise<void> {
+    // False clears the stored flag (an absent field and false read the same).
+    await this.mutate(record => ({ ...record, defaultBlankExcluded: excluded ? true : undefined }))
+  }
+
   async attachSession(sessionId: SessionId): Promise<void> {
     // Validation is skipped when the settled snapshot already accounts the
     // id: the cwd fact was checked when it first attached and both inputs
