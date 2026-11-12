@@ -361,6 +361,34 @@ describe('workspace browser rows', () => {
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
+  it('routes the group ＋ through a create menu only while create rows register', () => {
+    const onCreate = vi.fn()
+    const group: GroupNode = {
+      key: 'project', workspaceId: wid('project'), cwd: '/projects/project', createdAt: 0, label: 'Project',
+      sessionCount: 1, expanded: true, containsCurrent: false, sessions: [],
+    }
+    let closed = false
+    const createItems = (close: () => void) => [
+      <button key="wizard" type="button" onClick={() => { closed = true; close() }}>数字程序员</button>,
+    ]
+    render(<ProjectRowItem group={group} onToggle={vi.fn()} onCreate={onCreate} t={t} createItems={createItems} />)
+
+    // The ＋ opens the menu instead of creating directly.
+    fireEvent.click(screen.getByRole('button', { name: '在“Project”中新建会话' }))
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(screen.getByRole('menu')).toBeTruthy()
+
+    // The plain new-Session row keeps its direct behavior inside the menu.
+    fireEvent.click(screen.getByRole('menuitem'))
+    expect(onCreate).toHaveBeenCalledOnce()
+
+    // A registered row receives the owner's close callback.
+    fireEvent.click(screen.getByRole('button', { name: '在“Project”中新建会话' }))
+    fireEvent.click(screen.getByText('数字程序员'))
+    expect(closed).toBe(true)
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
   it('renders and opens a selected running Session row', () => {
     const node: SessionNode = {
       id: sid('session'), title: 'Session', blank: false, running: true,

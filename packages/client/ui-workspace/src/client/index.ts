@@ -68,7 +68,6 @@ export type {
   WorkspacePickerInjected, WorkspacePickerProps,
 } from './contract/slots.ts'
 export type { WorkspaceKey } from './locales.ts'
-export { GroupCreateMenuCloseContext, useGroupCreateMenuClose } from './group-create.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface GlobalStandardProps {

@@ -22,7 +22,6 @@ import {
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
 import { Menu, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
-import { GroupCreateMenuCloseContext } from '../group-create.tsx'
 import { abbreviateHomePath } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
@@ -223,8 +222,8 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 type ProjectRowItemProps = {
   group: GroupNode
   newShortcut?: ShortcutCatalogEntry | undefined
-  /** Registered create-menu rows; the ＋ offers a menu instead of a direct new Session when present. */
-  createItems?: ReactNode
+  /** Registered create-menu rows given the menu's close callback; the ＋ offers a menu instead of a direct new Session when any render. */
+  createItems?: (close: () => void) => ReactNode
   closeCreateMenu?: () => void
   containsCurrentDescendant?: boolean
   onToggle: () => void
@@ -289,7 +288,8 @@ function ProjectRow({
   const plusRef = useRef<HTMLButtonElement>(null)
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const closeCreateMenu = () => { setCreateMenuOpen(false) }
-  const hasCreateMenu = Array.isArray(createItems) ? createItems.length > 0 : createItems !== undefined && createItems !== null
+  const createMenuRows = createItems === undefined ? undefined : createItems(closeCreateMenu)
+  const hasCreateMenu = Array.isArray(createMenuRows) ? createMenuRows.length > 0 : createMenuRows !== undefined && createMenuRows !== null
   const drag = access.reorder ? offeredDrag : undefined
   const row = group
   // The ungrouped bucket has no workspace title: its label is dictionary copy.
@@ -354,9 +354,7 @@ function ProjectRow({
             <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); onCreate() }}>
               {t('actions.newSession')}
             </MenuItemButton>
-            <GroupCreateMenuCloseContext.Provider value={closeCreateMenu}>
-              {createItems}
-            </GroupCreateMenuCloseContext.Provider>
+            {createMenuRows}
           </Menu>
         )}
       </span>

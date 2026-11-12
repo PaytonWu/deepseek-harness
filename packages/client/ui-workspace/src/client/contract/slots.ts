@@ -137,6 +137,8 @@ export interface GroupCreateOwnerProps {
   readonly workspaceId: WorkspaceId | undefined
   /** Display label of the group header. */
   readonly label: string
+  /** Dismiss the create menu this row rendered in. */
+  readonly close: () => void
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

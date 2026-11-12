@@ -559,7 +559,7 @@
     { "path": "./packages/workflow/workflow-ptc" },
     { "path": "./packages/workflow/tool-workflow" },
     { "path": "./packages/experimental/tool-ralph" },
-    { "path": "./packages/experimental/pi-agent" },
+    { "path": "./packages/experimental/pi-agent/tsconfig.host.json" },
     { "path": "./packages/experimental/pi-agent-bundle" },
     { "path": "./packages/experimental/webhook" },
     { "path": "./packages/experimental/webhook-github" },

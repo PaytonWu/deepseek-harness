@@ -1,0 +1,81 @@
+/* Digital-coder creation dialog: a five-field form inside a Modal. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 380px;
+}
+
+.intro {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.avatars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.avatarButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.avatarButton:hover {
+  background: var(--dsw-alias-fill-tertiary);
+}
+
+.avatarButtonSelected {
+  background: var(--dsw-alias-fill-secondary);
+  outline: 1px solid var(--dsw-alias-stroke-primary);
+}
+
+.cwdRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.cwdInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.selectValue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--dsw-alias-state-error-primary);
+}
