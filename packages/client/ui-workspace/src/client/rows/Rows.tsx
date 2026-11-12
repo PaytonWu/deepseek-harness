@@ -613,7 +613,7 @@ export function SearchResultItem({
  */
 export function SessionNodeItem({
   node, currentId, now, onOpen, onRenameRequest, renderSlot, renderFactorySlot, useContextMenuTarget,
-  useContextMenu, onReveal, drag, home, useSessionAccess, t,
+  useContextMenu, onReveal, drag, home, useSessionAccess, t, workspaceCwd,
 }: {
   useContextMenu: WorkspaceBrowserProps['useContextMenu']
   renderFactorySlot: WorkspaceBrowserProps['renderFactorySlot']
@@ -630,6 +630,9 @@ export function SessionNodeItem({
   drag?: RowDragProps | undefined
   /** Host account home; POSIX home-rooted hover paths display as `~`. */
   home?: string | undefined
+  /** The owning Workspace's anchored directory; grouped rows only. The hover card omits the session
+   * directory when it matches (membership already says it), and absent in the flat list. */
+  workspaceCwd?: string | undefined
   t: RowTranslate
 } & Pick<WorkspaceBrowserProps, 'useSessionAccess'> & PropsRenderSlots<
   | 'sidebar.workspaces.session.row.action'
@@ -784,7 +787,7 @@ export function SessionNodeItem({
       anchor={ownRow}
       content={<SessionHoverContent
         node={node}
-        cwd={row.cwd === undefined ? undefined : abbreviateHomePath(row.cwd, home)}
+        cwd={row.cwd === undefined || row.cwd === workspaceCwd ? undefined : abbreviateHomePath(row.cwd, home)}
         now={now}
         renderSlot={renderSlot}
         t={t}

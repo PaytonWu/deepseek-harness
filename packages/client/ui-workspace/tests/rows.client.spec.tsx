@@ -961,8 +961,8 @@ describe('workspace browser rows', () => {
       runningSubagentCount: 0, completed: false, updatedAt: 0, pinned: false, archived: false,
       cwd: '/home/u/project',
     }
-    function hoverCard(node: SessionNode): void {
-      render(<SessionNodeItem node={node} currentId={undefined} now={0} onOpen={vi.fn()} home="/home/u" t={t} />)
+    function hoverCard(node: SessionNode, workspaceCwd?: string): void {
+      render(<SessionNodeItem node={node} currentId={undefined} now={0} onOpen={vi.fn()} home="/home/u" t={t} workspaceCwd={workspaceCwd} />)
       fireEvent.pointerEnter(screen.getByRole('treeitem').parentElement as HTMLElement)
       act(() => { vi.advanceTimersByTime(800) })
     }
@@ -985,6 +985,14 @@ describe('workspace browser rows', () => {
       hoverCard({ ...located, blank: true, title: '' })
       expect(screen.getAllByText('新会话')).toHaveLength(2)
       expect(screen.getByText('~/project')).toBeTruthy()
+    })
+
+    it('omits the directory when it equals the owning Workspace anchor, keeps it otherwise', () => {
+      hoverCard({ ...located, cwd: '/repos/alpha' }, '/repos/alpha')
+      expect(screen.queryByText('/repos/alpha')).toBeNull()
+      cleanup()
+      hoverCard({ ...located, cwd: '/repos/alpha' }, '/repos/other')
+      expect(screen.getByText('/repos/alpha')).toBeTruthy()
     })
   })
 
