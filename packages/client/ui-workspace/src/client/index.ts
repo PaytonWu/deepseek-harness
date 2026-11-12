@@ -68,6 +68,7 @@ export type {
   WorkspacePickerInjected, WorkspacePickerProps,
 } from './contract/slots.ts'
 export type { WorkspaceKey } from './locales.ts'
+export { GroupCreateMenuCloseContext, useGroupCreateMenuClose } from './group-create.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface GlobalStandardProps {
@@ -322,6 +323,7 @@ export function apply(ctx: Context): void {
       name: 'sidebar.workspaces',
       children: {
         'sidebar.workspaces.directoryFlow': { kind: 'single', scope: 'root' },
+        'sidebar.workspaces.group.create.item': { kind: 'list', scope: 'root' },
         'sidebar.workspaces.session.row.action': { kind: 'list', scope: 'root' },
         'sidebar.session.row.leading': { kind: 'list', scope: 'root', inline: true },
         'sidebar.session.row.trailing': { kind: 'list', scope: 'root', inline: true },

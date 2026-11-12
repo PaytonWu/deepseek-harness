@@ -45,7 +45,9 @@ for (const candidate of CANDIDATES) {
   })
   const employee: EmployeeRecord = {
     id: 'smoke000',
+    type: 'pi-coder',
     name: '数字程序员',
+    avatar: '🧑‍💻',
     description: 'You are a smoke-test coding employee. Reply with exactly: HI',
     cwd: process.cwd(),
     createdAt: new Date().toISOString(),

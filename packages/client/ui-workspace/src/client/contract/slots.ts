@@ -131,12 +131,27 @@ export interface SessionRowTrailingOwnerProps {
   readonly sessionId: SessionId
 }
 
+/** Owner share of one group-header create-menu occurrence. */
+export interface GroupCreateOwnerProps {
+  /** Workspace the group represents; undefined for the ungrouped bucket. */
+  readonly workspaceId: WorkspaceId | undefined
+  /** Display label of the group header. */
+  readonly label: string
+}
+
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** Directory-flow hole under the conversation empty-state picker (declared by the WorkspacePicker entry). */
     'conversation.hero.workspace.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
     /** Directory-flow hole under the sidebar browsing region (declared by the WorkspaceBrowser entry). */
     'sidebar.workspaces.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
+    /**
+     * One extra row in a Workspace group header's create menu. The ＋ offers a
+     * menu (a plain new Session first, then these rows in order) whenever any
+     * entry registers here; with no entries the ＋ keeps creating a Session
+     * directly. Owner share identifies the group whose header was clicked.
+     */
+    'sidebar.workspaces.group.create.item': { kind: 'list'; scope: 'root'; owner: GroupCreateOwnerProps }
     /**
      * Leading decoration of one Session row, in the 16px cell before the title
      * that the row's own state dot otherwise occupies. A higher-priority state

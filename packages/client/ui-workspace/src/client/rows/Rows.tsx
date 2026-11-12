@@ -9,8 +9,8 @@
  * `sidebar.workspaces.session.row.action` list. Session and Workspace
  * hover cards are suppressed while their menu is open.
  */
-import { useEffect, useMemo, useRef } from 'react'
-import type { PointerEvent, RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { PointerEvent, ReactNode, RefObject } from 'react'
 import clsx from 'clsx'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import {
@@ -21,6 +21,8 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Menu, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
+import { GroupCreateMenuCloseContext } from '../group-create.tsx'
 import { abbreviateHomePath } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
@@ -221,6 +223,9 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 type ProjectRowItemProps = {
   group: GroupNode
   newShortcut?: ShortcutCatalogEntry | undefined
+  /** Registered create-menu rows; the ＋ offers a menu instead of a direct new Session when present. */
+  createItems?: ReactNode
+  closeCreateMenu?: () => void
   containsCurrentDescendant?: boolean
   onToggle: () => void
   onCreate: () => void
@@ -278,9 +283,13 @@ function WorkspaceProjectRow({ workspaceId, ...props }: ProjectRowItemProps & { 
 
 function ProjectRow({
   group, containsCurrentDescendant = false, onToggle, onCreate, drag: offeredDrag, home, newShortcut, t, access,
-  renderFactorySlot, useContextMenuTarget, useContextMenu,
+  createItems, renderFactorySlot, useContextMenuTarget, useContextMenu,
 }: ProjectRowItemProps & { access: ProjectRowAccess }) {
   const { getTriggerProps } = useContextMenu()
+  const plusRef = useRef<HTMLButtonElement>(null)
+  const [createMenuOpen, setCreateMenuOpen] = useState(false)
+  const closeCreateMenu = () => { setCreateMenuOpen(false) }
+  const hasCreateMenu = Array.isArray(createItems) ? createItems.length > 0 : createItems !== undefined && createItems !== null
   const drag = access.reorder ? offeredDrag : undefined
   const row = group
   // The ungrouped bucket has no workspace title: its label is dictionary copy.
@@ -329,15 +338,26 @@ function ProjectRow({
         {access.create && (
           <Tooltip label={t('actions.newSession')} shortcutKeys={newShortcut?.keys} side="bottom" align="end" delayMs={500} portal>
             <button
+              ref={plusRef}
               type="button"
               className={css.iconButton}
               aria-keyshortcuts={newShortcut?.aria}
               aria-label={t('actions.newSession.aria', { name: label })}
-              onClick={(e) => { e.stopPropagation(); onCreate() }}
+              onClick={(e) => { e.stopPropagation(); if (hasCreateMenu) setCreateMenuOpen(true); else onCreate() }}
             >
               <IconNewChatOutlineRegular size={14} />
             </button>
           </Tooltip>
+        )}
+        {hasCreateMenu && (
+          <Menu open={createMenuOpen} onClose={closeCreateMenu} anchor={<span ref={plusRef} className={css.iconButton} aria-hidden />} anchorRef={plusRef} align="end" autoFocus>
+            <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); onCreate() }}>
+              {t('actions.newSession')}
+            </MenuItemButton>
+            <GroupCreateMenuCloseContext.Provider value={closeCreateMenu}>
+              {createItems}
+            </GroupCreateMenuCloseContext.Provider>
+          </Menu>
         )}
       </span>
     </div>

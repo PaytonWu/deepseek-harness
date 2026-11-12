@@ -257,6 +257,7 @@ type SessionTreeProps = Pick<
   | 'useRemoteAccess' | 'useSessionAccess' | 'useWorkspaceAccess'
 > & PropsRenderSlots<
   | 'sidebar.workspaces.session.row.action'
+  | 'sidebar.workspaces.group.create.item'
   | 'sidebar.session.row.trailing'
   | 'sidebar.session.row.leading'
   | 'sidebar.session.row.hover'
@@ -553,6 +554,10 @@ function SessionTree({
       >
         <ProjectRowItem
           newShortcut={shortcuts.find(row => row.id === 'session.new')}
+          createItems={renderSlot('sidebar.workspaces.group.create.item', {
+            workspaceId: group.workspaceId,
+            label: group.label,
+          })}
           group={group}
           renderFactorySlot={renderFactorySlot} useContextMenu={useContextMenu} useContextMenuTarget={useContextMenuTarget}
           useRemoteAccess={useRemoteAccess}
