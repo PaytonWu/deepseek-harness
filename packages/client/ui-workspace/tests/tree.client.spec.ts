@@ -122,7 +122,7 @@ describe('Session ordering', () => {
     const sessions = withMain(list(
       summary('pin', 30),
       summary('ordinary', 20),
-      { ...summary('blank', 0), blank: true },
+      { ...summary('blank', 0), blank: true, title: '' },
     ), sid('blank'))
     const order = pinCurrentBlank(sessions.ids, sid('blank'))
     const state = rowState({ pinned: ['pin'] })
@@ -321,8 +321,8 @@ describe('deriveGroups', () => {
   })
 
   it('shows only the current blank session in its Workspace count and tree', () => {
-    const currentBlank = { ...summary('current-blank', 5), blank: true, retainedBy: { mainView: 1 } }
-    const staleBlank = { ...summary('stale-blank', 4), blank: true }
+    const currentBlank = { ...summary('current-blank', 5), blank: true, title: '', retainedBy: { mainView: 1 } }
+    const staleBlank = { ...summary('stale-blank', 4), blank: true, title: '' }
     const real = summary('shown', 3)
     const sessions = list(real, currentBlank, staleBlank)
     const groups = deriveGroups(
@@ -339,7 +339,7 @@ describe('deriveGroups', () => {
     expect(groups[0]!.sessionCount).toBe(2)
     // A non-current blank stray never surfaces an Ungrouped bucket either.
     const strayGroups = deriveGroups(
-      list({ ...summary('stray', 2), blank: true }),
+      list({ ...summary('stray', 2), blank: true, title: '' }),
       [workspace('first', [])], noRows, noAttention, view(),
     )
     expect(strayGroups.map(group => group.key)).toEqual(['first'])
@@ -626,8 +626,8 @@ describe('deriveFlat', () => {
   })
 
   it('shows only the current blank session and excludes blanks from search', () => {
-    const currentBlank = { ...summary('current-blank', 9), blank: true, retainedBy: { mainView: 1 } }
-    const staleBlank = { ...summary('stale-blank', 8), blank: true }
+    const currentBlank = { ...summary('current-blank', 9), blank: true, title: '', retainedBy: { mainView: 1 } }
+    const staleBlank = { ...summary('stale-blank', 8), blank: true, title: '' }
     const sessions = list(currentBlank, summary('real', 1), staleBlank)
     const rows = deriveFlat(sessions, visibleSessionIds(sessions, noArchive, 'default'), noRows, noAttention)
     expect(rows.map(row => row.id)).toEqual([currentBlank.id, sid('real')])
@@ -821,6 +821,7 @@ describe('deriveSearchResults', () => {
     expect(result.items.map(item => [item.id, item.title])).toEqual([[idHit.id, 'Ordinary title']])
   })
 
+<<<<<<< HEAD
   it('excludes blank sessions from search regardless of query or content hits', () => {
     const currentBlank = { ...summary('opaque-current', 5), blank: true }
     const staleBlank = { ...summary('new session stale', 4), blank: true }
@@ -828,22 +829,32 @@ describe('deriveSearchResults', () => {
     // Blank placeholders never match — not their localized-display title, not
     // their id, and not even a backend content hit naming them.
     const result = searchResults(
+=======
+  it('matches titled blanks by title and never matches untitled blanks', () => {
+    const titledBlank = { ...summary('new session stale', 5), blank: true }
+    const untitledBlank = { ...summary('opaque-current', 4), blank: true, title: '' }
+    const sessions = list(titledBlank, untitledBlank)
+    // A titled blank (a created digital employee awaiting its first message)
+    // matches by its stored title; an untitled blank matches nothing — not its
+    // id, and not even a backend content hit naming it.
+    const result = deriveSearchResults(
+>>>>>>> b71bdaee94 (fix(client): keep titled blank sessions visible and searchable)
       sessions,
-      [workspace('first', ['opaque-current', 'new session stale'])],
+      [workspace('first', ['new session stale', 'opaque-current'])],
       'new session',
       noArchive,
       'default',
       noAttention,
       {
         items: [
-          { sessionId: staleBlank.id, snippet: 'stale body' },
-          { sessionId: currentBlank.id, snippet: 'current body' },
+          { sessionId: untitledBlank.id, snippet: 'stale body' },
         ],
         hasMore: false,
       },
       10,
     )
-    expect(result.items).toEqual([])
+    expect(result.items.map(item => [item.id, item.title]))
+      .toEqual([[titledBlank.id, 'new session stale']])
   })
 
   it('uses the supplied cap and preserves either local overflow or backend hasMore', () => {
