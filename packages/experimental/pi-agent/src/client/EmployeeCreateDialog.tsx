@@ -147,8 +147,11 @@ function EmployeeCreateDialog(
         setError(`${t('create.error')} ${result.error.message}`)
         return
       }
-      close()
+      // Navigate first: the view switch is the creation's visible feedback, and
+      // a navigation failure keeps the dialog up with the error instead of
+      // silently closing over an employee the user cannot find.
       if (result.value.sessionId !== undefined) openSession(SessionId(result.value.sessionId))
+      close()
     }).catch((reason: unknown) => {
       setError(`${t('create.error')} ${reason instanceof Error ? reason.message : String(reason)}`)
     })

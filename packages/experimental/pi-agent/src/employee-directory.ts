@@ -11,6 +11,8 @@ import { mkdir } from 'node:fs/promises'
 import { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import type { Session } from '@deepseek-ai/dsh-session'
+import type { SessionTitleService } from '@deepseek-ai/dsh-session-title'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type { Workspace } from '@deepseek-ai/dsh-workspace'
 import { PI_EMPLOYEE_PROVIDER } from './employee-adapter.ts'
@@ -54,12 +56,13 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     // spawn input only and never has to live inside the group directory.
     const workspace = await this.ensureWorkspace()
     const sessionId = SessionId(`session-${randomUUID()}`)
-    await this.ctx.agents.create({
+    const handle = await this.ctx.agents.create({
       sessionId,
       meta: { cwd: workspace.path },
       agentOptions: { provider: PI_EMPLOYEE_PROVIDER, model: employee.id },
     })
     await workspace.attachSession(sessionId)
+    this.applySessionTitle(handle.agent.session, employee.name)
     const bound = await this.deps.store.update(employee.id, { sessionId })
     return employeeView(bound)
   }
@@ -101,6 +104,26 @@ export class EmployeeDirectoryService extends TypertRemoteService {
   private async queryPiModels(): Promise<{ models: readonly { provider: string; modelId: string; name: string }[] }> {
     const models = await this.deps.listPiModels()
     return { models }
+  }
+
+  /**
+   * Name the bound session after the employee so the sidebar row reads as the
+   * employee, not the default first-turn title. Best effort: a deployment
+   * without the title service (or a rejected name) keeps the default title.
+   */
+  private applySessionTitle(session: Session, name: string): void {
+    const titles: SessionTitleService | undefined = this.ctx.get('sessionTitle')
+    if (titles === undefined) {
+      this.ctx.logger.warn('pi-agent: no sessionTitle service visible from the directory service')
+      return
+    }
+    try {
+      titles.rename(session, name)
+    } catch (error) {
+      // Title is cosmetic: a rename refusal (normalized empty, session not yet
+      // live in the title store) must not fail the committed employee creation.
+      this.ctx.logger.debug(`pi-agent: session title for employee "${name}" kept default: ${String(error)}`)
+    }
   }
 
   /** Resolve the employee group Workspace, creating it once. */
