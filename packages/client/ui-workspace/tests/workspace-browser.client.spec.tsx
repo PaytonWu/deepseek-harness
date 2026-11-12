@@ -291,7 +291,7 @@ describe('WorkspaceBrowser', () => {
     preferences.actions.setGroupExpanded('alpha', true)
     const b = mount({
       useSessions: hook(sessionState([
-        summary('tie-b', 100), summary('blank', 1, { blank: true }), summary('tie-a', 100),
+        summary('tie-b', 100), summary('blank', 1, { blank: true, title: '' }), summary('tie-a', 100),
       ], { main: sid('blank') })),
       useWorkspaces: hook(workspaceState([workspace('alpha', ['missing', 'tie-b', 'blank', 'tie-a'])])),
     })
@@ -397,7 +397,7 @@ describe('WorkspaceBrowser', () => {
     const account = mode === 'flat' ? FLAT_SESSION_ORDER_KEY : mode === 'ungrouped' ? UNGROUPED_KEY : 'alpha'
     const old = summary('old', 10)
     const absent = summary('absent', 5)
-    const blank = summary('blank', 1, { blank: true })
+    const blank = summary('blank', 1, { blank: true, title: '' })
     const groups = (ids: string[]) => workspaceState(mode === 'ungrouped' ? [] : [workspace('alpha', ids)])
     const preferences = createWorkspaceViewStore().create()
     preferences.actions.setGroupBy(mode === 'flat' ? 'flat' : 'workspace')
@@ -418,13 +418,13 @@ describe('WorkspaceBrowser', () => {
     expect(b.store.getSnapshot().sessionOrderByAccount[account]).toEqual(['blank', 'old', 'absent'])
 
     rerender(b, {
-      useSessions: hook(sessionState([old, { ...blank, blank: false, updatedAt: 20 }], { main: blank.id })),
+      useSessions: hook(sessionState([old, { ...blank, blank: false, title: 'blank', updatedAt: 20 }], { main: blank.id })),
     })
     expect(names()).toEqual([expect.stringContaining('blank'), expect.stringContaining('old')])
     expect(b.store.getSnapshot().sessionOrderByAccount[account]).toEqual(['blank', 'old', 'absent'])
 
     rerender(b, {
-      useSessions: hook(sessionState([old, absent, { ...blank, blank: false, updatedAt: 20 }], { main: blank.id })),
+      useSessions: hook(sessionState([old, absent, { ...blank, blank: false, title: 'blank', updatedAt: 20 }], { main: blank.id })),
       useWorkspaces: hook(groups(['old', 'absent', 'blank'])),
     })
     expect(names()).toEqual([
@@ -432,7 +432,7 @@ describe('WorkspaceBrowser', () => {
     ])
     expect(b.store.getSnapshot().sessionOrderByAccount[account]).toEqual(['blank', 'old', 'absent'])
     rerender(b, {
-      useSessions: hook(sessionState([old, { ...blank, blank: false, updatedAt: 20 }], { main: blank.id })),
+      useSessions: hook(sessionState([old, { ...blank, blank: false, title: 'blank', updatedAt: 20 }], { main: blank.id })),
       useWorkspaces: hook(groups(['old', 'blank'])),
     })
     expect(b.store.getSnapshot().sessionOrderByAccount[account]).toEqual(['blank', 'old', 'absent'])
@@ -440,7 +440,7 @@ describe('WorkspaceBrowser', () => {
 
   it('reconciles a late blank and its first prompt while the sidebar is collapsed', async () => {
     const old = summary('old', 10)
-    const blank = summary('blank', 1, { blank: true })
+    const blank = summary('blank', 1, { blank: true, title: '' })
     const b = mount({
       wide: false,
       useSessions: hook(sessionState([old])),
@@ -456,7 +456,7 @@ describe('WorkspaceBrowser', () => {
     })
 
     rerender(b, {
-      useSessions: hook(sessionState([old, { ...blank, blank: false, updatedAt: 20 }], { main: blank.id })),
+      useSessions: hook(sessionState([old, { ...blank, blank: false, title: 'blank', updatedAt: 20 }], { main: blank.id })),
     })
     await waitFor(() => {
       expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old'])
@@ -972,7 +972,7 @@ describe('WorkspaceBrowser', () => {
 
   it.each([false, true])('expands 17 ordinary sessions five at a time and resets after the final partial batch (blank: %s)', (withBlank) => {
     const ordinary = Array.from({ length: 17 }, (_, index) => summary(`session-${index + 1}`, 17 - index))
-    const blank = summary('blank', 18, { blank: true })
+    const blank = summary('blank', 18, { blank: true, title: '' })
     const items = withBlank ? [blank, ...ordinary] : ordinary
     mount({
       useSessions: hook(sessionState(items, withBlank ? { main: blank.id } : {})),
@@ -1047,7 +1047,7 @@ describe('WorkspaceBrowser', () => {
 
   it('keeps the blank New Session outside the five-row folding quota', () => {
     const ordinary = Array.from({ length: 6 }, (_, index) => summary(`session-${index + 1}`, 6 - index))
-    const blank = summary('blank', 7, { blank: true })
+    const blank = summary('blank', 7, { blank: true, title: '' })
     const b = mount({
       useSessions: hook(sessionState([blank, ...ordinary], { main: blank.id })),
       useWorkspaces: hook(workspaceState([workspace('alpha', [blank.id, ...ordinary.map(item => item.id)])])),
@@ -1063,7 +1063,7 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByText('session-6')).toBeNull()
 
     rerender(b, {
-      useSessions: hook(sessionState([{ ...blank, blank: false }, ...ordinary], { main: blank.id })),
+      useSessions: hook(sessionState([{ ...blank, blank: false, title: 'blank' }, ...ordinary], { main: blank.id })),
     })
     expect(screen.getByText('blank')).toBeTruthy()
     expect(screen.queryByText('session-5')).toBeNull()
@@ -1072,7 +1072,7 @@ describe('WorkspaceBrowser', () => {
 
   it('pins the blank while collapsed drags keep an ordinary source visible', async () => {
     const ordinary = Array.from({ length: 6 }, (_, index) => summary(`session-${index + 1}`, 6 - index))
-    const blank = summary('blank', 7, { blank: true })
+    const blank = summary('blank', 7, { blank: true, title: '' })
     const b = mount({
       useSessions: hook(sessionState([blank, ...ordinary], { main: blank.id })),
       useWorkspaces: hook(workspaceState([workspace('alpha', [blank.id, ...ordinary.map(item => item.id)])])),
@@ -1104,7 +1104,7 @@ describe('WorkspaceBrowser', () => {
 
   it('reorders a newly exposed batch row while preserving the blank and hidden tail', () => {
     const ordinary = Array.from({ length: 12 }, (_, index) => summary(`session-${index + 1}`, 12 - index))
-    const blank = summary('blank', 13, { blank: true })
+    const blank = summary('blank', 13, { blank: true, title: '' })
     const b = mount({
       useSessions: hook(sessionState([blank, ...ordinary], { main: blank.id })),
       useWorkspaces: hook(workspaceState([workspace('alpha', [blank.id, ...ordinary.map(item => item.id)])])),
@@ -1401,8 +1401,8 @@ describe('WorkspaceBrowser', () => {
   })
 
   it('shows only the current blank session as the localized New Session, excluded from search', () => {
-    const currentBlank = summary('alpha-blank', 9, { blank: true })
-    const staleBlank = summary('beta-blank', 8, { blank: true })
+    const currentBlank = summary('alpha-blank', 9, { blank: true, title: '' })
+    const staleBlank = summary('beta-blank', 8, { blank: true, title: '' })
     const sessions = sessionState(
       [currentBlank, staleBlank],
       { main: currentBlank.id },
@@ -1451,7 +1451,7 @@ describe('WorkspaceBrowser', () => {
     pick('最近更新')
     rerender(b, {
       useSessions: hook(sessionState([
-        summary('old', 100), summary('mid', 200), summary('blank', 1, { blank: true }),
+        summary('old', 100), summary('mid', 200), summary('blank', 1, { blank: true, title: '' }),
       ], { main: sid('blank') })),
       useWorkspaces: groups(['old', 'mid', 'blank']),
     })
@@ -1485,7 +1485,7 @@ describe('WorkspaceBrowser', () => {
     expect(names()).toEqual(['mid', 'old', 'blank'])
     rerender(restored, {
       useSessions: hook(sessionState([
-        summary('old', 100), summary('mid', 200), summary('blank', 300), summary('new-blank', 1, { blank: true }),
+        summary('old', 100), summary('mid', 200), summary('blank', 300), summary('new-blank', 1, { blank: true, title: '' }),
       ], { main: sid('new-blank') })),
       useWorkspaces: groups(['old', 'mid', 'blank', 'new-blank']),
     })
