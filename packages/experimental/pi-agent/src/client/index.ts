@@ -38,7 +38,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required services: the Remote service, the locale service, and the slot registry. */
-export const inject = ['contextMenus', 'locale', 'remote', 'slots']
+export const inject = ['contextMenus', 'locale', 'remote', 'sessions', 'slots', 'workspaces']
 
 /**
  * Mount this package's generated Remote namespace, then register the shared
@@ -48,7 +48,7 @@ export const inject = ['contextMenus', 'locale', 'remote', 'slots']
  */
 export function apply(ctx: Context): () => Promise<void> {
   const transport = ctx.plugin(async (owner) => { await owner.remote.$mount(piRemote) })
-  const ui = ctx.inject(['contextMenus', 'locale', 'remote.employee', 'slots', 'uiWorkspace'], (scope) => {
+  const ui = ctx.inject(['contextMenus', 'locale', 'remote.employee', 'sessions', 'slots', 'uiWorkspace', 'workspaces'], (scope) => {
     scope.effect(() => scope.locale.register(NS, dictionaries), 'pi-agent: dictionaries')
     const source = createEmployeeSource()
     /** Read the directory back; a settled read replaces the projection. */
@@ -56,7 +56,28 @@ export function apply(ctx: Context): () => Promise<void> {
       const result = await scope.remote.employee.list()
       if (result.ok) source.adopt(result.value)
     }
+    // Archive blank sessions left in the employee group without an employee:
+    // the roster is employees only, and an unsent blank carries nothing durable.
+    // Chained AFTER the directory read (the bound-session guard must never see
+    // an empty projection), and delayed past the app's Session restore, which
+    // otherwise provisions a fresh composer blank after an early prune.
+    const pruneStrays = async (): Promise<void> => {
+      const group = await scope.remote.employee.group()
+      if (!group.ok || group.value.workspaceId === undefined) return
+      const state = scope.sessions.list.getSnapshot()
+      const bound = new Set(source.hooks.employees.getSnapshot()
+        .map(row => row.sessionId).filter(id => id !== undefined))
+      const members = scope.workspaces.list.getSnapshot().items
+        .find(item => item.workspaceId === group.value.workspaceId)?.sessionIds ?? []
+      for (const id of members) {
+        if (bound.has(id)) continue
+        const summary = state.byId[id]
+        if (summary === undefined || !summary.blank) continue
+        await scope.uiWorkspace.archiveSession(SessionId(id), { stopActivity: true }).catch(() => undefined)
+      }
+    }
     void refresh().catch(() => undefined)
+    setTimeout(() => { void refresh().then(pruneStrays).catch(() => undefined) }, 12_000)
     const create = async (request: EmployeeCreateRequest) => {
       source.setCreating(true)
       try {
