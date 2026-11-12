@@ -123,7 +123,9 @@ function EmployeeCreateDialog(
   const browse = (): void => {
     pickDirectory().then((picked) => {
       if (picked !== null) setCwd(picked)
-    }).catch(() => undefined)
+    }).catch((reason: unknown) => {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    })
   }
 
   const submit = (): void => {
@@ -156,6 +158,7 @@ function EmployeeCreateDialog(
     <Modal
       open
       onClose={close}
+      className={clsx(css.dialogWide)}
       title={t('create.title')}
       closeLabel={t('create.cancel')}
       footer={(

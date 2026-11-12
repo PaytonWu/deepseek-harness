@@ -52,6 +52,7 @@ describe('client plugin assembly', () => {
         piModels: vi.fn(async () => ({ ok: true as const, value: { models: [] } })),
       },
     })
+    ctx.provide('uiWorkspace', { pickDirectory: vi.fn(async () => null) } as never)
     const fiber = await ctx.plugin({ inject: [...clientInject], apply: clientApply })
     return { ctx, fiber, list }
   }

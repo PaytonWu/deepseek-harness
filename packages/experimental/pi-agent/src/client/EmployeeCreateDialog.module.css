@@ -1,9 +1,15 @@
 /* Digital-coder creation dialog: a five-field form inside a Modal. */
+/* Widens the shared Modal dialog: five thinking segments plus the cwd row
+ * do not fit the default 380px column. */
+.dialogWide {
+  width: min(600px, 100%);
+}
+
 .form {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-width: 380px;
+  width: 100%;
 }
 
 .intro {
