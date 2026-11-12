@@ -42,7 +42,7 @@ export const inject = ['locale', 'remote', 'slots']
  */
 export function apply(ctx: Context): () => Promise<void> {
   const transport = ctx.plugin(async (owner) => { await owner.remote.$mount(piRemote) })
-  const ui = ctx.inject(['locale', 'remote.employee', 'slots'], (scope) => {
+  const ui = ctx.inject(['locale', 'remote.employee', 'slots', 'uiWorkspace'], (scope) => {
     scope.effect(() => scope.locale.register(NS, dictionaries), 'pi-agent: dictionaries')
     const source = createEmployeeSource()
     /** Read the directory back; a settled read replaces the projection. */
