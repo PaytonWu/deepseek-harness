@@ -36,6 +36,7 @@ export const en = {
   'create.cancel': 'Cancel',
   'create.error': 'Could not create the digital coder.',
   'create.cwdRequired': 'Enter a working directory.',
+  'hover.cwd': 'Coding directory',
   'avatar.aria': 'Digital employee avatar',
 } as const
 
@@ -63,6 +64,7 @@ const zh = {
   'create.cancel': '取消',
   'create.error': '无法创建数字程序员。',
   'create.cwdRequired': '请输入工作目录。',
+  'hover.cwd': '编码目录',
   'avatar.aria': '数字员工头像',
 } satisfies Record<keyof typeof en, string>
 
@@ -90,6 +92,7 @@ const ja = {
   'create.cancel': 'キャンセル',
   'create.error': 'デジタルプログラマーを作成できませんでした。',
   'create.cwdRequired': '作業ディレクトリを入力してください。',
+  'hover.cwd': 'コーディングディレクトリ',
   'avatar.aria': 'デジタル従業員のアバター',
 } satisfies Record<keyof typeof en, string>
 
@@ -117,6 +120,7 @@ const es = {
   'create.cancel': 'Cancelar',
   'create.error': 'No se pudo crear el programador digital.',
   'create.cwdRequired': 'Introduce un directorio de trabajo.',
+  'hover.cwd': 'Directorio de código',
   'avatar.aria': 'Avatar del empleado digital',
 } satisfies Record<keyof typeof en, string>
 
@@ -144,6 +148,7 @@ const fr = {
   'create.cancel': 'Annuler',
   'create.error': 'Impossible de créer le programmeur numérique.',
   'create.cwdRequired': 'Saisissez un répertoire de travail.',
+  'hover.cwd': 'Répertoire de code',
   'avatar.aria': "Avatar de l'employé numérique",
 } satisfies Record<keyof typeof en, string>
 
@@ -171,6 +176,7 @@ const de = {
   'create.cancel': 'Abbrechen',
   'create.error': 'Der digitale Programmierer konnte nicht erstellt werden.',
   'create.cwdRequired': 'Gib ein Arbeitsverzeichnis ein.',
+  'hover.cwd': 'Code-Verzeichnis',
   'avatar.aria': 'Avatar des digitalen Mitarbeiters',
 } satisfies Record<keyof typeof en, string>
 
@@ -198,6 +204,7 @@ const ru = {
   'create.cancel': 'Отмена',
   'create.error': 'Не удалось создать цифрового программиста.',
   'create.cwdRequired': 'Введите рабочий каталог.',
+  'hover.cwd': 'Каталог кода',
   'avatar.aria': 'Аватар цифрового сотрудника',
 } satisfies Record<keyof typeof en, string>
 
@@ -225,6 +232,7 @@ const pt = {
   'create.cancel': 'Cancelar',
   'create.error': 'Não foi possível criar o programador digital.',
   'create.cwdRequired': 'Informe um diretório de trabalho.',
+  'hover.cwd': 'Diretório de código',
   'avatar.aria': 'Avatar do funcionário digital',
 } satisfies Record<keyof typeof en, string>
 

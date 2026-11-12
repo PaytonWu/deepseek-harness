@@ -22,6 +22,7 @@ import { createEmployeeSource } from './employee-source.ts'
 import { CreateEmployeeMenuItem } from './CreateEmployeeMenuItem.tsx'
 import { EmployeeCreateDialogHost } from './EmployeeCreateDialog.tsx'
 import { EmployeeAvatarBadge } from './EmployeeAvatarBadge.tsx'
+import { EmployeeHoverCwd } from './EmployeeHoverCwd.tsx'
 import { dictionaries, NS, type PiAgentClientKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -80,6 +81,10 @@ export function apply(ctx: Context): () => Promise<void> {
       name: 'sidebar.session.row.leading', id: 'pi-employee-avatar', order: 20, locale: NS,
       inject: () => ({ hooks: { employees: source.hooks.employees } }),
     }, EmployeeAvatarBadge)), 'pi-agent: avatar mark')
+    scope.effect(() => scope.slots.inject('sidebar.session.row.hover', () => scope.slots.register({
+      name: 'sidebar.session.row.hover', id: 'pi-employee-cwd', order: 20, locale: NS,
+      inject: () => ({ hooks: { employees: source.hooks.employees } }),
+    }, EmployeeHoverCwd)), 'pi-agent: hover coding directory')
   })
   return async () => {
     await ui.dispose()

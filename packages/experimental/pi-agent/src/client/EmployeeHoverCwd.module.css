@@ -1,0 +1,20 @@
+/* Session hover-card coding-directory section for digital employees. */
+.cwd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cwdLabel {
+  font-size: 12px;
+  line-height: 16px;
+  color: #ADB2B8;
+}
+
+.cwdPath {
+  font-size: 12px;
+  line-height: 16px;
+  color: #CFD3D6;
+  overflow-wrap: anywhere;
+}
