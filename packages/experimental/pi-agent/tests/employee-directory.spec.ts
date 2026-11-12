@@ -32,11 +32,13 @@ async function setup() {
       return { agent: { id: options.sessionId, session: { id: options.sessionId }, options: options.agentOptions ?? {} } }
     },
   })
+  const workspacePath = join(home, 'pi-agent', 'workspace')
   ctx.provide('workspaceRegistry', {
     create: async () => {
       const sessions: SessionId[] = []
       const workspace = {
         title: '我的数字员工',
+        path: workspacePath,
         attachSession: async (sessionId: SessionId) => { attached.push({ workspace: 'group', sessionId }); sessions.push(sessionId) },
       }
       return workspace
@@ -55,7 +57,7 @@ async function setup() {
     ...overrides,
   })
   const failAgentCreation = (error: Error | undefined): void => { createShouldFail = error }
-  return { service, store, created, attached, disposed, cwd, request, failAgentCreation }
+  return { service, store, created, attached, disposed, cwd, workspacePath, request, failAgentCreation }
 }
 
 describe('EmployeeDirectoryService (T2.1, T2.2, T3.1)', () => {
@@ -65,11 +67,11 @@ describe('EmployeeDirectoryService (T2.1, T2.2, T3.1)', () => {
   })
 
   it('creates an employee with a bound session in the group workspace', async () => {
-    const { service, store, created, attached, cwd } = await setup()
+    const { service, store, created, attached, cwd, workspacePath } = await setup()
     const view = await service.create({ name: '数字程序员', description: 'Writes code.', cwd })
     expect(view.sessionId).toMatch(/^session-/)
     expect(created).toHaveLength(1)
-    expect(created[0]).toMatchObject({ cwd, provider: PI_EMPLOYEE_PROVIDER, model: view.id })
+    expect(created[0]).toMatchObject({ cwd: workspacePath, provider: PI_EMPLOYEE_PROVIDER, model: view.id })
     expect(attached).toEqual([{ workspace: 'group', sessionId: created[0]!.sessionId }])
     expect(store.get(view.id)?.sessionId).toBe(view.sessionId)
   })

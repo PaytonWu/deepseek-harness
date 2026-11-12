@@ -116,6 +116,19 @@ export class EmployeeStore {
     return next
   }
 
+  /**
+   * Record the pi session file our own child just reported. Unlike an import,
+   * the file is authoritative from the child's `get_state`, so no existence
+   * check races the child's own flush.
+   */
+  async bindSessionFile(id: string, piSessionFile: string): Promise<void> {
+    const current = this.records.get(id)
+    if (current === undefined) throw new Error(`pi-agent: unknown employee ${id}`)
+    if (current.piSessionFile === piSessionFile) return
+    this.records.set(id, { ...current, piSessionFile })
+    await this.save()
+  }
+
   /** Remove and persist one employee. */
   async delete(id: string): Promise<void> {
     if (!this.records.has(id)) throw new Error(`pi-agent: unknown employee ${id}`)

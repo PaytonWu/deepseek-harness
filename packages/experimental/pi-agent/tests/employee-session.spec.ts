@@ -58,6 +58,22 @@ describe('PiEmployeeAdapter (T3.2, T3.3, T3.5, T3.6, T3.8)', () => {
     expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'stop' } })
   })
 
+  it('skips injected runtime-context snapshots and forwards the real user text', async () => {
+    const child = stubChild('OK')
+    const adapter = new PiEmployeeAdapter({
+      employeeOf: () => employee(),
+      ensureChild: () => Promise.resolve({ child, createdFresh: false }),
+    })
+    const options = generateOptions()
+    ;(options.messages as unknown[]).push({
+      role: 'user',
+      content: [{ type: 'text', text: 'Current runtime context. This snapshot supersedes earlier snapshots.' }],
+      source: { kind: 'runtime-context' },
+    })
+    await collect(adapter.stream(options))
+    expect(child.sent).toEqual(['do the thing'])
+  })
+
   it('injects the responsibility description before the first user text on a fresh session', async () => {
     const child = stubChild('OK')
     const adapter = new PiEmployeeAdapter({
