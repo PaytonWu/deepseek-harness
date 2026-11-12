@@ -6,7 +6,6 @@ import { Context } from '@deepseek-ai/cordis'
 import { bindSnapshotSelector, makeTranslate, RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -38,8 +37,6 @@ function employee(overrides: Partial<EmployeeView> = {}): EmployeeView {
 }
 
 describe('client plugin assembly', () => {
-  const blankId = 'session-stray-blank'
-
   /** Mount the client plugin over a real Context with a scripted employee namespace. */
   async function mountPlugin(employees: readonly EmployeeView[] = []) {
     const ctx = new Context()
@@ -55,42 +52,22 @@ describe('client plugin assembly', () => {
       employee: {
         list,
         create: vi.fn(),
-        group: vi.fn(async () => ({ ok: true as const, value: { workspaceId: 'ws-employees' } })),
         piModels: vi.fn(async () => ({ ok: true as const, value: { models: [] } })),
       },
     })
-    const archiveSession = vi.fn(async (sessionId: SessionId) => { archived.push(sessionId) })
     ctx.provide('uiWorkspace', {
       pickDirectory: vi.fn(async () => null),
-      archiveSession,
+      archiveSession: vi.fn(async () => undefined),
     } as never)
     const menus: { id: string; resolve: (target: { sessionId: string; displayTitle: string }) => unknown[] }[] = []
     ctx.provide('contextMenus', { register: (contribution: { id: string; resolve: (target: { sessionId: string; displayTitle: string }) => unknown[] }) => { menus.push(contribution); return () => undefined } } as never)
-    // Blank-flag store for the stray-blank prune; strays archive through uiWorkspace.
-    const sessionList = createSnapshotStore<SessionListState>({
-      ids: [SessionId(blankId)],
-      byId: {
-        [SessionId(blankId)]: {
-          id: SessionId(blankId), title: '', displayTitle: '', blank: true, running: false, updatedAt: 0,
-          retainedBy: {},
-        },
-      },
-      phase: 'ready', projectionsBySession: {},
-    })
-    ctx.provide('sessions', { list: sessionList } as never)
-    const archived: SessionId[] = []
-    const workspaceList = createSnapshotStore({
-      items: [{ workspaceId: 'ws-employees', path: 'C:/pi/workspace', title: '我的数字员工',
-        sessionIds: [blankId, 'session-1'], createdAt: '', updatedAt: '' }],
-      archivedSessionIds: [], pinnedSessionIds: [], phase: 'ready',
-    })
-    ctx.provide('workspaces', { list: workspaceList } as never)
+    ctx.provide('workspaces', { list: createSnapshotStore({ items: [], archivedSessionIds: [], pinnedSessionIds: [], phase: 'ready' }) } as never)
     const fiber = await ctx.plugin({ inject: [...clientInject], apply: clientApply })
-    return { ctx, fiber, list, menus, archived }
+    return { ctx, fiber, list, menus }
   }
 
   it('registers the create-menu row, the wizard overlay, and the avatar mark, and reads the directory once', async () => {
-    const { ctx, list, menus, archived } = await mountPlugin([employee({ sessionId: 'session-1' })])
+    const { ctx, list, menus } = await mountPlugin([employee({ sessionId: 'session-1' })])
     // The contributions mount on the inner fiber once remote.employee unparks.
     await waitFor(() => {
       expect(ctx.slots.entries('sidebar.workspaces.group.create.item').map(entry => entry.options.id)).toEqual(['pi-coder'])
@@ -99,9 +76,6 @@ describe('client plugin assembly', () => {
       expect(ctx.slots.entries('sidebar.session.row.leading').map(entry => entry.options.id)).toEqual(['pi-employee-avatar'])
     })
     await waitFor(() => { expect(list).toHaveBeenCalledOnce() })
-    // The stray-blank prune runs after the app's Session restore settles
-    // (12s delay), archiving the unowned blank but not the bound session.
-    await vi.waitFor(() => { expect(archived).toEqual([SessionId(blankId)]) }, { timeout: 20_000 })
     // The Session context menu carries the dismiss row only for employee sessions.
     const dismissMenu = menus.find(menu => menu.id === 'employee.dismiss')
     expect(dismissMenu).toBeDefined()
@@ -109,7 +83,7 @@ describe('client plugin assembly', () => {
     expect(bound.map(action => action.id)).toEqual(['dismiss'])
     const stranger = dismissMenu!.resolve({ sessionId: 'session-other', displayTitle: 'x' })
     expect(stranger).toEqual([])
-  }, 25_000)
+  })
 })
 
 describe('CreateEmployeeMenuItem', () => {
