@@ -131,3 +131,90 @@ describe('EmployeeStore (T1.7) persistence hygiene', () => {
     expect(siblings).toEqual([])
   })
 })
+
+describe('EmployeeStore (T1.1-M1) admin type and channel', () => {
+  it('creates an admin record with the preset template and required channel', async () => {
+    const { store, cwd } = await fixture()
+    const admin = await store.create({ type: 'admin', channel: 'dingtalk', cwd })
+    expect(admin).toMatchObject({ type: 'admin', channel: 'dingtalk', name: '数字管理员 1', avatar: '🧑‍💼' })
+    expect(admin.description).toContain('数字管理员')
+    const second = await store.create({ type: 'admin', channel: 'dingtalk', name: '总管', cwd })
+    expect(second.name).toBe('总管')
+    void second
+  })
+
+  it('rejects channel on a pi-coder and a missing channel on an admin', async () => {
+    const { store, cwd } = await fixture()
+    await expect(store.create({ channel: 'dingtalk', cwd })).rejects.toThrow(/channel/)
+    await expect(store.create({ type: 'admin', cwd })).rejects.toThrow(/channel/)
+  })
+
+  it('still requires a cwd for an admin (the orchestration supplies the group directory)', async () => {
+    const { store } = await fixture({ withCwd: false })
+    await expect(store.create({ type: 'admin', channel: 'dingtalk', cwd: undefined as unknown as string }))
+      .rejects.toThrow(/cwd/)
+  })
+})
+
+describe('EmployeeStore (T1.2, T1.3-M2) manager binding', () => {
+  it('rejects a managerId that does not resolve to an existing admin', async () => {
+    const { store, cwd } = await fixture()
+    await expect(store.create({ cwd, managerId: 'no-such-admin' })).rejects.toThrow(/managerId/)
+    await store.create({ type: 'admin', channel: 'dingtalk', name: '管理员A', cwd })
+    await expect(store.create({ cwd, managerId: '管理员A' })).rejects.toThrow(/managerId/)
+  })
+
+  it('rejects a managerId pointing at a pi-coder and a managed admin', async () => {
+    const { store, cwd } = await fixture()
+    const coder = await store.create({ name: '码农', cwd })
+    await expect(store.create({ cwd, managerId: coder.id })).rejects.toThrow(/managerId/)
+    await expect(store.create({ type: 'admin', channel: 'dingtalk', name: '管理员A', cwd, managerId: coder.id }))
+      .rejects.toThrow(/managerId/)
+  })
+
+  it('auto-binds to the sole admin when managerId is omitted', async () => {
+    const { store, cwd } = await fixture()
+    const admin = await store.create({ type: 'admin', channel: 'dingtalk', name: '管理员A', cwd })
+    const coder = await store.create({ name: '小张', cwd })
+    expect(coder.managerId).toBe(admin.id)
+  })
+
+  it('rejects an omitted managerId when two admins exist', async () => {
+    const { store, cwd } = await fixture()
+    await store.create({ type: 'admin', channel: 'dingtalk', name: '管理员A', cwd })
+    await store.create({ type: 'admin', channel: 'dingtalk', name: '管理员B', cwd })
+    await expect(store.create({ name: '小张', cwd })).rejects.toThrow(/managerId/)
+  })
+
+  it('leaves a coder unbound when no admin exists and the id is omitted', async () => {
+    const { store, cwd } = await fixture()
+    const coder = await store.create({ name: '小张', cwd })
+    expect(coder.managerId).toBeUndefined()
+  })
+})
+
+describe('EmployeeStore (T1.4, T1.5, T1.7-M2/M9) delete semantics', () => {
+  it('unbinds every bound employee when an admin is deleted', async () => {
+    const { store, file, cwd } = await fixture()
+    const admin = await store.create({ type: 'admin', channel: 'dingtalk', name: '管理员A', cwd })
+    const coderA = await store.create({ name: '小张', cwd })
+    const coderB = await store.create({ name: '小李', cwd })
+    expect(coderA.managerId).toBe(admin.id)
+    expect(coderB.managerId).toBe(admin.id)
+
+    await store.delete(admin.id)
+    expect(store.get(admin.id)).toBeUndefined()
+    expect(store.get(coderA.id)!.managerId).toBeUndefined()
+    expect(store.get(coderB.id)!.managerId).toBeUndefined()
+    const reloaded = EmployeeStore.load(file)
+    expect(reloaded.get(coderA.id)!.managerId).toBeUndefined()
+    void coderB
+  })
+
+  it('deletes an unmanaged employee without any managerId checks (human path is unrestricted)', async () => {
+    const { store, cwd } = await fixture()
+    const coder = await store.create({ name: '小张', cwd })
+    await store.delete(coder.id)
+    expect(store.get(coder.id)).toBeUndefined()
+  })
+})

@@ -7,7 +7,11 @@
 /** Client-facing employee record. */
 export interface EmployeeView {
   readonly id: string
-  readonly type: 'pi-coder'
+  readonly type: 'pi-coder' | 'admin'
+  /** IM channel of a management-layer employee. */
+  readonly channel?: 'dingtalk'
+  /** The admin managing this employee; first-line employees only. */
+  readonly managerId?: string
   readonly name: string
   readonly avatar: string
   readonly description: string
