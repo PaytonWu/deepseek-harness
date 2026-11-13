@@ -361,6 +361,27 @@ describe('workspace browser rows', () => {
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
+  it('offers an excluded roster group registered rows only, with no plain row or shortcut', () => {
+    const onCreate = vi.fn()
+    const group: GroupNode = {
+      key: 'roster', workspaceId: wid('roster'), cwd: '/repos/roster', createdAt: 0, label: '我的数字员工',
+      sessionCount: 0, expanded: true, containsCurrent: false, sessions: [],
+    }
+    const createItems = (close: () => void) => [
+      <button key="wizard" type="button" onClick={() => { close() }}>数字程序员</button>,
+    ]
+    render(<ProjectRowItem group={group} onToggle={vi.fn()} onCreate={onCreate} t={t}
+      defaultBlankExcluded createItems={createItems}
+      newShortcut={{ id: 'session.new' as never, label: 'New', aliases: [], binding: null, keys: ['Ctrl', 'Alt', 'N'], aria: 'Control+Alt+N', modified: true, conflicts: [], issue: null }} />)
+
+    // The ＋ opens the menu with the registered row; the plain New Session row
+    // (and its shortcut) is absent, and direct creation never fires.
+    fireEvent.click(screen.getByRole('button', { name: '在“我的数字员工”中新建会话' }))
+    expect(screen.getByRole('menu').textContent).not.toContain('新会话')
+    expect(screen.getByRole('menu').textContent).not.toContain('Ctrl')
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
   it('routes the group ＋ through a create menu only while create rows register', () => {
     const onCreate = vi.fn()
     const group: GroupNode = {

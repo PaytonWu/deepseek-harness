@@ -472,6 +472,9 @@ function SessionTree({
   const rowKeys: string[] = groups.length === 0 ? ['empty'] : []
   const renderGroup = (group: GroupNode, depth: number): ReactNode => {
     const workspaceId = group.workspaceId
+    const workspaceView = workspaceId === undefined
+      ? undefined
+      : workspaces.find(item => item.workspaceId === workspaceId)
     const children = childrenByParent.get(group.key) ?? []
     const compatibleDrag = workspaceDrag !== null && parents.get(workspaceDrag.workspaceId) === parents.get(group.key)
     const watermark = sessionWatermarks[group.key] ?? SESSION_WATERMARK_BASE
@@ -553,6 +556,7 @@ function SessionTree({
           }}
       >
         <ProjectRowItem
+          defaultBlankExcluded={workspaceView?.defaultBlankExcluded === true}
           newShortcut={shortcuts.find(row => row.id === 'session.new')}
           createItems={(close: () => void) => renderSlot('sidebar.workspaces.group.create.item', {
             workspaceId: group.workspaceId,
