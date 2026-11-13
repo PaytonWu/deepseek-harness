@@ -10,7 +10,7 @@
  * hover cards are suppressed while their menu is open.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { PointerEvent, ReactNode, RefObject } from 'react'
+import type { MouseEvent as ReactMouseEvent, PointerEvent, ReactNode, RefObject } from 'react'
 import clsx from 'clsx'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import {
@@ -51,6 +51,36 @@ type RowRenderSlots = PropsRenderSlots<
   | 'sidebar.session.row.leading'
   | 'sidebar.session.row.hover'
 >['renderSlot']
+
+/** The ＋ trigger: Tooltip and shortcut hint only when the target group accepts plain new Sessions. */
+function TooltipWithShortcut(props: {
+  show: boolean
+  label: string
+  shortcutKeys: readonly string[] | undefined
+  aria: string | undefined
+  ariaLabel: string
+  buttonRef: RefObject<HTMLButtonElement>
+  onClick: (e: ReactMouseEvent<HTMLButtonElement>) => void
+}): ReactNode {
+  const button = (
+    <button
+      ref={props.buttonRef}
+      type="button"
+      className={css.iconButton}
+      aria-keyshortcuts={props.show ? props.aria : undefined}
+      aria-label={props.ariaLabel}
+      onClick={props.onClick}
+    >
+      <IconNewChatOutlineRegular size={14} />
+    </button>
+  )
+  if (!props.show) return button
+  return (
+    <Tooltip label={props.label} shortcutKeys={props.shortcutKeys} side="bottom" align="end" delayMs={500} portal>
+      {button}
+    </Tooltip>
+  )
+}
 
 /** Row display title: an untitled blank shows the localized New Session label; a titled blank
  * (a created digital employee awaiting its first message) shows that title. */
@@ -357,22 +387,19 @@ function ProjectRow({
           })
         )}
         {access.create && (
-          <Tooltip label={t('actions.newSession')} shortcutKeys={newShortcut?.keys} side="bottom" align="end" delayMs={500} portal>
-            <button
-              ref={plusRef}
-              type="button"
-              className={css.iconButton}
-              aria-keyshortcuts={newShortcut?.aria}
-              aria-label={t('actions.newSession.aria', { name: label })}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (hasCreateMenu) setCreateMenuOpen(true)
-                else if (!defaultBlankExcluded) onCreate()
-              }}
-            >
-              <IconNewChatOutlineRegular size={14} />
-            </button>
-          </Tooltip>
+          <TooltipWithShortcut
+            show={defaultBlankExcluded !== true}
+            label={t('actions.newSession')}
+            shortcutKeys={newShortcut?.keys}
+            aria={newShortcut?.aria}
+            ariaLabel={t('actions.newSession.aria', { name: label })}
+            buttonRef={plusRef}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (hasCreateMenu) setCreateMenuOpen(true)
+              else if (!defaultBlankExcluded) onCreate()
+            }}
+          />
         )}
         {hasCreateMenu && (
           <Menu open={createMenuOpen} onClose={closeCreateMenu} anchor={null} anchorRef={plusRef} align="end" autoFocus portal>
