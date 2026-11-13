@@ -35,7 +35,7 @@
 
 实现：`src/employee-directory.ts` / `src/manager.ts` 扩展。
 
-## Stage 3 — 反馈管线（M4, M6）
+## Stage 3 — 反馈管线（M4, M6）✅
 
 测试先行（`tests/admin-pipeline.spec.ts`，stub transport + stub pi）：
 
