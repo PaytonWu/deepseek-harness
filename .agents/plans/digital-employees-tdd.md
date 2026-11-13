@@ -114,22 +114,3 @@
 **Q-C 绑定：employees.json 存 `sessionId`。** 员工记录增加 `sessionId?: SessionId`（1:1，v1）；重启恢复走 `session/create` 的 blank-session 复用 + `selectModel('pi-employee-<id>', 'pi')`。会话本身是普通 dsh 会话，可搜索性天然成立。
 
 对 plan 的影响：Stage 3 的“直通”卖现为 adapter（`src/employee-adapter.ts`）；Stage 4 的分组工作转移到 Stage 3（workspace 初始化）；UI 仅剩向导+入口。测试编号不变，映射表维持有效。
-
-## Stage 7 — 数字管理员（N17–N26，2026-11-13 增补；设计共识见会话 2026-11-13 grill）
-
-- T7.1 数据层（N17, N18）：store 迁移 `channel`（admin）与 `managerId`（一线员工）字段 + 校验；`bind/unbind` 语义（创建自动绑唯一管理员/多选、销毁自动解绑、管理员删除级联解绑）；store 测试先行。
-- T7.2 管理员会话（N19）：admin 创建编排（pi 会话固定分组目录、无 cwd 字段、模型/思考保留）；adapter route 同 pi-coder（web 直接对话）；编排测试。
-- T7.3 反馈管线（N20）：员工回合结算观察 → `managerId` 定位 → 消息组装（格式 + 2000 截断）→ Transport.send；stub transport 测试（格式/截断/绑定过滤/重试 3 次/失败不阻塞）。
-- T7.4 DingtalkTransport（N21, N26）：接口 + dws 实现（`dws chat` 发通知群；`dws event` 长连接子进程管理：启停/重连/解析）；通道配置入 settings；stub spawn 测试 + 接口契约测试。
-- T7.5 白名单与注入（N23）：长连接事件 → userId 白名单 → 注入管理员会话（复用 adapter prompt 路径）→ 回答回发 IM；非白名单忽略；测试。
-- T7.6 管理员工具（N24）：注册到 admin pi 子代理的五个工具（创建/销毁/列表/派活/查询中间状态）；绑定校验在工具实现（销毁未绑定拒绝、派活与查询仅限已绑定、创建自动绑定本管理员）；stub 测试每工具的正反两例。
-- T7.7 向导与命令（N25, N17, N19）：类型步骤（数字程序员/数字管理员）；admin 变体（隐藏 cwd）；多管理员选择步骤；`/new-employee` 同步；组件与命令测试。
-- T7.8 生命周期通知（N22）：dsh 侧与管理员工具的创建/销毁动作经 Transport 通知；接线测试。
-- T7.9 locale 与文档（KR4）：8 语言字典；README 双语（管理员章节）；全 gates。
-- T7.10 live 验收（KR5 SMOKE）：创建管理员（钉钉收生命周期通知）→ IM 派活数字程序员 → 员工反馈回钉钉 → IM 指令创建/销毁员工（含未绑定拒绝）→ web 直聊管理员。
-
-交叉验证增补：N17↔T7.1/T7.7、N18↔T7.1/T7.6、N19↔T7.2/T7.7、N20↔T7.3、N21↔T7.4、N22↔T7.8、N23↔T7.5、N24↔T7.6、N25↔T7.1/T7.7、N26↔T7.4；T7.9 对应 KR4，T7.10 对应 KR5 活体验收。
-
-## Stage 7 执行状态
-
-- 未开始（2026-11-13 落档）。
