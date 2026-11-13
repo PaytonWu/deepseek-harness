@@ -1,4 +1,8 @@
 import { describe, expect, it, onTestFinished } from 'vitest'
+import { readFile } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
+import { Client } from '@modelcontextprotocol/client'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -36,6 +40,7 @@ async function setup() {
   const workspaceFlags: string[] = []
   ctx.provide('workspaceRegistry', {
     create: async () => {
+      await mkdir(workspacePath, { recursive: true })
       const sessions: SessionId[] = []
       const workspace = {
         title: '我的数字员工',
@@ -49,6 +54,7 @@ async function setup() {
   })
   const disposed: string[] = []
   const piModelQueries = { count: 0 }
+  const piAgentHome = join(home, 'pi-home')
   const service = new EmployeeDirectoryService(ctx, {
     store,
     disposeChild: async (employeeId) => { disposed.push(employeeId) },
@@ -56,6 +62,7 @@ async function setup() {
       piModelQueries.count += 1
       return [{ provider: 'stub', modelId: 'stub-chat', name: 'Stub Chat' }]
     },
+    piAgentHome,
   }, '我的数字员工')
   onTestFinished(async () => { await ctx.fiber.dispose().catch(() => undefined) })
   const request = (overrides: Partial<EmployeeCreateRequest> = {}): EmployeeCreateRequest => ({
@@ -64,8 +71,13 @@ async function setup() {
     cwd,
     ...overrides,
   })
+  const stopAdminServers = async (): Promise<void> => { await service.stopAdminServers() }
+  onTestFinished(() => { void stopAdminServers() })
   const failAgentCreation = (error: Error | undefined): void => { createShouldFail = error }
-  return { service, store, created, attached, disposed, cwd, workspacePath, request, failAgentCreation, piModelQueries, workspaceFlags }
+  return {
+    service, store, created, attached, disposed, cwd, workspacePath, request,
+    failAgentCreation, piModelQueries, workspaceFlags, piAgentHome,
+  }
 }
 
 describe('EmployeeDirectoryService (T2.1, T2.2, T3.1)', () => {
@@ -124,3 +136,59 @@ describe('EmployeeDirectoryService (T2.1, T2.2, T3.1)', () => {
     await expect(service.delete({ id: view.id })).rejects.toThrow(/unknown/)
   })
 })
+
+describe('EmployeeDirectoryService Stage 2 (M3, T2.1-T2.3)', () => {
+  it('defaults an admin creation to the group directory and routes the pi-employee adapter (T2.1)', async () => {
+    const { service, created, attached, workspacePath, request } = await setup()
+    const view = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员A', cwd: undefined as unknown as string }))
+    expect(view.cwd).toBe(workspacePath)
+    expect(created).toHaveLength(1)
+    expect(created[0]!.cwd).toBe(workspacePath)
+    expect(created[0]!.provider).toBe(PI_EMPLOYEE_PROVIDER)
+    expect(created[0]!.model).toBe(view.id)
+    expect(attached).toHaveLength(1)
+  })
+
+  it('exposes the management tool server on admin creation: .pi/mcp.json + trust + five tools (T2.3)', async () => {
+    const { service, store, created, attached, workspacePath, piAgentHome, request } = await setup()
+    void attached
+    const view = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员A' }))
+    await service.create(request({ name: '小张' }))
+
+    const mcp = JSON.parse(await readFile(join(workspacePath, '.pi', 'mcp.json'), 'utf8')) as {
+      mcpServers: Record<string, { url: string }>
+    }
+    const url = mcp.mcpServers['digital-admin']!.url
+    expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp\/[0-9a-f]{32}$/u)
+
+    const trust = JSON.parse(await readFile(join(piAgentHome, 'trust.json'), 'utf8')) as Record<string, boolean>
+    expect(trust[realpathSync(workspacePath)]).toBe(true)
+
+    // The endpoint lists the five management tools and routes into the store.
+    const client = await mcpClientFor(url)
+    const tools = await client.listTools()
+    expect(tools.tools.map(tool => tool.name).sort()).toEqual([
+      'create_employee', 'destroy_employee', 'dispatch_task', 'employee_status', 'list_employees',
+    ])
+    const call = await client.callTool({ name: 'list_employees', arguments: {} })
+    const text = (call.content as Array<{ type: string; text: string }>)[0]?.text ?? ''
+    expect(text).toContain('小张')
+    expect(text).not.toContain('管理员A')
+    void store
+    void created
+    await client.close()
+    void view
+  })
+})
+
+/** Connect an MCP client to the management tool endpoint. */
+async function mcpClientFor(url: string): Promise<{
+  listTools: () => Promise<{ tools: Array<{ name: string }> }>
+  callTool: (args: { name: string; arguments?: Record<string, unknown> }) => Promise<{ content: unknown }>
+  close: () => Promise<void>
+}> {
+  const client = new Client({ name: 'spec', version: '0.0.0' })
+  const transport = new StreamableHTTPClientTransport(new URL(url))
+  await client.connect(transport)
+  return client
+}

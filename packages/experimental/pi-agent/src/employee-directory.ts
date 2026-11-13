@@ -7,9 +7,14 @@
  */
 
 import { randomUUID } from 'node:crypto'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
+import { readFileSync, realpathSync } from 'node:fs'
 import { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import { ManagementToolServer, type AdminToolHandlers } from './admin/tool-server.ts'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type { Session } from '@deepseek-ai/dsh-session'
 import type { SessionTitleService } from '@deepseek-ai/dsh-session-title'
@@ -27,6 +32,10 @@ export interface EmployeeDirectoryDeps {
   readonly disposeChild: (employeeId: string) => Promise<void>
   /** Spawn one short-lived pi child and list its selectable models. */
   readonly listPiModels: () => Promise<readonly { provider: string; modelId: string; name: string }[]>
+  /** pi's own config home (trust.json lives here); defaults to `~/.pi/agent`. */
+  readonly piAgentHome?: string
+  /** Whether an employee currently has a live pi child; powers the status tool. */
+  readonly isChildLive?: (employeeId: string) => boolean
 }
 
 /** Employee CRUD and session orchestration over the Typert gateway. */
@@ -50,11 +59,18 @@ export class EmployeeDirectoryService extends TypertRemoteService {
    */
   @Remote('create')
   async create(request: EmployeeCreateRequest): Promise<EmployeeView> {
-    const employee = await this.deps.store.create(request)
+    // The group workspace must exist before any record: admins default their
+    // cwd to it (the wizard collects no directory for them).
+    const workspace = await this.ensureWorkspace()
+    const adminCwd = request.type === 'admin' && request.cwd === undefined
+      ? workspace.path
+      : undefined
+    const employee = await this.deps.store.create(
+      adminCwd === undefined ? request : { ...request, cwd: adminCwd },
+    )
     // The session's dsh-side cwd is the group workspace directory, because a
     // Workspace accounts sessions by directory; the employee's own cwd is a pi
     // spawn input only and never has to live inside the group directory.
-    const workspace = await this.ensureWorkspace()
     const sessionId = SessionId(`session-${randomUUID()}`)
     const handle = await this.ctx.agents.create({
       sessionId,
@@ -63,6 +79,7 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     })
     await workspace.attachSession(sessionId)
     this.applySessionTitle(handle.agent.session, employee.name)
+    if (employee.type === 'admin') await this.exposeAdminTools(employee.id, workspace.path)
     const bound = await this.deps.store.update(employee.id, { sessionId })
     return employeeView(bound)
   }
@@ -98,6 +115,75 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     await this.deps.disposeChild(request.id)
     await this.deps.store.delete(request.id)
     return { deleted: true }
+  }
+
+  /** One management tool server per admin, keyed by admin id. */
+  private readonly adminServers = new Map<string, ManagementToolServer>()
+
+  /**
+   * Expose the management tools to this admin's pi child: start the MCP tool
+   * server (loopback, token path), write a project-local `.pi/mcp.json` into
+   * the group workspace, and mark the workspace trusted in pi's own config —
+   * otherwise pi ignores project MCP servers in non-interactive sessions.
+   */
+  private async exposeAdminTools(adminId: string, workspacePath: string): Promise<void> {
+    let server = this.adminServers.get(adminId)
+    if (server === undefined) {
+      server = new ManagementToolServer(adminId, this.adminToolHandlers(adminId))
+      const url = await server.start()
+      this.adminServers.set(adminId, server)
+      this.ctx.logger.info(`pi-agent: admin tool server for ${adminId} at ${url}`)
+    }
+    const mcpJsonPath = join(workspacePath, '.pi', 'mcp.json')
+    await mkdir(join(workspacePath, '.pi'), { recursive: true })
+    await writeFileAtomic(mcpJsonPath, `${JSON.stringify({ mcpServers: { 'digital-admin': { url: server.endpoint } } }, undefined, 2)}
+`, { mode: 0o600, dirMode: 0o700 })
+    const trustPath = join(this.deps.piAgentHome ?? join(homedir(), '.pi', 'agent'), 'trust.json')
+    let trust: Record<string, boolean> = {}
+    try {
+      trust = JSON.parse(readFileSync(trustPath, 'utf8')) as Record<string, boolean>
+    } catch {
+      trust = {}
+    }
+    trust[realpathSync(workspacePath)] = true
+    await mkdir(this.deps.piAgentHome ?? join(homedir(), '.pi', 'agent'), { recursive: true })
+    await writeFileAtomic(trustPath, `${JSON.stringify(trust, undefined, 2)}
+`, { mode: 0o600, dirMode: 0o700 })
+  }
+
+  /** Stop every admin tool server (plugin shutdown). */
+  async stopAdminServers(): Promise<void> {
+    await Promise.resolve()
+    for (const server of this.adminServers.values()) await server.stop()
+    this.adminServers.clear()
+  }
+
+  /**
+   * The tools an admin's pi child may call. Binding and permission checks live
+   * here (deterministic code), never in the LLM's discretion; Stage 6 wires
+   * the session-backed handlers (dispatch, status).
+   */
+  private adminToolHandlers(adminId: string): AdminToolHandlers {
+    return {
+      createEmployee: async (args) => {
+        const view = await this.create({ type: 'pi-coder', name: args.name, cwd: args.cwd, managerId: adminId })
+        return { id: view.id, name: view.name }
+      },
+      destroyEmployee: async (args) => {
+        const employee = this.deps.store.list().find(row => row.name === args.name || row.id === args.name)
+        if (employee === undefined) return { destroyed: false, message: `没有名为「${args.name}」的数字程序员` }
+        if (employee.managerId !== adminId) return { destroyed: false, message: `「${employee.name}」不在本管理员的绑定名单中，无法销毁` }
+        await this.delete({ id: employee.id })
+        return { destroyed: true, message: `已销毁「${employee.name}」` }
+      },
+      listEmployees: () => Promise.resolve({
+        employees: this.deps.store.list()
+          .filter(row => row.managerId === adminId)
+          .map(row => ({ name: row.name, running: this.deps.isChildLive?.(row.id) === true })),
+      }),
+      dispatchTask: () => Promise.resolve({ dispatched: false, message: '尚未接线（Stage 6）' }),
+      employeeStatus: () => Promise.resolve({ message: '尚未接线（Stage 6）' }),
+    }
   }
 
   /** Spawn one short-lived pi child and ask it for its selectable models. */

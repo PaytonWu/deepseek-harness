@@ -32,11 +32,16 @@ export interface EmployeeModelOption {
 
 /** One employee creation request. */
 export interface EmployeeCreateRequest {
-  readonly type?: 'pi-coder'
+  readonly type?: 'pi-coder' | 'admin'
+  /** IM channel; required for an admin, rejected on any other type. */
+  readonly channel?: 'dingtalk'
+  /** Admin to bind; omitted resolves to the sole admin, ambiguous with many. */
+  readonly managerId?: string
   readonly name?: string
   readonly avatar?: string
   readonly description?: string
-  readonly cwd: string
+  /** The wizard omits this for an admin; the orchestration fixes the group directory. */
+  readonly cwd?: string
   readonly piModel?: { provider: string; modelId: string }
   readonly thinking?: 'off' | 'low' | 'medium' | 'high'
   readonly piSessionFile?: string
