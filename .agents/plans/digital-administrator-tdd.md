@@ -48,7 +48,7 @@
 
 实现：`src/admin/pipeline.ts`（结算观察复用 manager 的 settle 事件）。
 
-## Stage 4 — Transport（M5, M10）
+## Stage 4 — Transport（M5, M10）✅
 
 测试先行（`tests/admin-transport.spec.ts`，stub dws spawn）：
 
