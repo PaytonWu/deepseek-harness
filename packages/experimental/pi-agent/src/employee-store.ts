@@ -84,7 +84,7 @@ export interface EmployeeCreateInput {
 }
 
 /** Patchable fields of one employee record. */
-export type EmployeePatch = Partial<Pick<EmployeeRecord, 'name' | 'description' | 'cwd' | 'piSessionFile' | 'sessionId'>>
+export type EmployeePatch = Partial<Pick<EmployeeRecord, 'name' | 'description' | 'cwd' | 'piSessionFile' | 'sessionId' | 'managerId'>>
 
 /** Load and persist the employee directory; malformed files fail loudly. */
 export class EmployeeStore {

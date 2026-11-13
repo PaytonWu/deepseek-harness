@@ -235,6 +235,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       const live = manager.live(employeeId)
       if (live !== undefined) await live.dispose()
     },
+    isChildLive: employeeId => manager.live(employeeId) !== undefined,
+    ensureChild: async (employee) => {
+      const { child } = await ensureChild(employee)
+      return { child: { sendPrompt: (text: string) => child.sendPrompt(text) } }
+    },
     listPiModels: async () => {
       const probe = PiRpcChild.start({ ...spawnOptions, cwd: paths.root })
       try {
