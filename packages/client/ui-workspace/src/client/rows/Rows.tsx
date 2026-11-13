@@ -293,6 +293,15 @@ function ProjectRow({
   const plusRef = useRef<HTMLButtonElement>(null)
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const closeCreateMenu = () => { setCreateMenuOpen(false) }
+  const closeTimer = useRef<number | undefined>(undefined)
+  const armCreateMenuClose = (): void => {
+    if (closeTimer.current !== undefined) window.clearTimeout(closeTimer.current)
+    closeTimer.current = window.setTimeout(() => { closeCreateMenu() }, 150)
+  }
+  const cancelCreateMenuClose = (): void => {
+    if (closeTimer.current !== undefined) window.clearTimeout(closeTimer.current)
+    closeTimer.current = undefined
+  }
   const createMenuRows = createItems === undefined ? undefined : createItems(closeCreateMenu)
   const registeredRows = Array.isArray(createMenuRows)
     ? createMenuRows
@@ -314,7 +323,7 @@ function ProjectRow({
     ? { workspaceId: row.workspaceId, path: row.cwd } : undefined
   const ownRow = (
     <div
-      className={clsx(css.projectRow, menuOpen && css.menuOpen)}
+      className={clsx(css.projectRow, menuOpen && css.menuOpen, createMenuOpen && css.menuOpen)}
       data-row-key={`workspace:${group.key}`}
       role="treeitem"
       aria-expanded={row.expanded}
@@ -330,6 +339,7 @@ function ProjectRow({
           dragPreview.start(e)
         }}
       onDragEnd={() => { if (dragPreview.clear()) drag?.end() }}
+      onMouseLeave={() => { if (createMenuOpen) armCreateMenuClose() }}
     >
       <span className={clsx(css.slot, css.folder, active && css.folderActive)}>
         {row.expanded ? <IconFolderOpenRegular /> : <IconFolderCloseRegular />}
@@ -367,13 +377,15 @@ function ProjectRow({
           </Tooltip>
         )}
         {hasCreateMenu && (
-          <Menu open={createMenuOpen} onClose={closeCreateMenu} anchor={<span ref={plusRef} className={css.iconButton} aria-hidden />} anchorRef={plusRef} align="end" autoFocus portal>
-            {!defaultBlankExcluded && (
-              <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); create() }}>
-                {t('actions.newSession')}
-              </MenuItemButton>
-            )}
-            {createMenuRows}
+          <Menu open={createMenuOpen} onClose={closeCreateMenu} anchor={null} anchorRef={plusRef} align="end" autoFocus portal>
+            <div onMouseEnter={cancelCreateMenuClose} onMouseLeave={armCreateMenuClose}>
+              {!defaultBlankExcluded && (
+                <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); create() }}>
+                  {t('actions.newSession')}
+                </MenuItemButton>
+              )}
+              {createMenuRows}
+            </div>
           </Menu>
         )}
       </span>
