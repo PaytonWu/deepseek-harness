@@ -223,6 +223,8 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 /** Owner props of one Workspace header row; the access Hooks are the browser root's own standard seats. */
 type ProjectRowItemProps = {
   group: GroupNode
+  /** This group's Workspace never receives implicit blanks; its ＋ menu offers registered rows only. */
+  defaultBlankExcluded?: boolean
   newShortcut?: ShortcutCatalogEntry | undefined
   /** Registered create-menu rows given the menu's close callback; the ＋ offers a menu instead of a direct new Session when any render. */
   createItems?: (close: () => void) => ReactNode
@@ -284,14 +286,21 @@ function WorkspaceProjectRow({ workspaceId, ...props }: ProjectRowItemProps & { 
 
 function ProjectRow({
   group, containsCurrentDescendant = false, onToggle, onCreate, drag: offeredDrag, home, newShortcut, t, access,
-  createItems, renderFactorySlot, useContextMenuTarget, useContextMenu,
+  createItems, defaultBlankExcluded, renderFactorySlot, useContextMenuTarget, useContextMenu,
 }: ProjectRowItemProps & { access: ProjectRowAccess }) {
   const { getTriggerProps } = useContextMenu()
   const plusRef = useRef<HTMLButtonElement>(null)
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const closeCreateMenu = () => { setCreateMenuOpen(false) }
   const createMenuRows = createItems === undefined ? undefined : createItems(closeCreateMenu)
-  const hasCreateMenu = Array.isArray(createMenuRows) ? createMenuRows.length > 0 : createMenuRows !== undefined && createMenuRows !== null
+  const registeredRows = Array.isArray(createMenuRows)
+    ? createMenuRows
+    : createMenuRows !== undefined && createMenuRows !== null ? [createMenuRows] : []
+  // The ＋ opens a menu only once rows register. A default-blank-excluded
+  // group (the employee roster) then offers registered rows only — no plain
+  // New Session row, and an inert ＋ without any; other groups keep the T6.4
+  // contract of direct creation before rows register.
+  const hasCreateMenu = registeredRows.length > 0
   const drag = access.reorder ? offeredDrag : undefined
   const row = group
   // The ungrouped bucket has no workspace title: its label is dictionary copy.
@@ -345,7 +354,11 @@ function ProjectRow({
               className={css.iconButton}
               aria-keyshortcuts={newShortcut?.aria}
               aria-label={t('actions.newSession.aria', { name: label })}
-              onClick={(e) => { e.stopPropagation(); if (hasCreateMenu) setCreateMenuOpen(true); else onCreate() }}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (hasCreateMenu) setCreateMenuOpen(true)
+                else if (!defaultBlankExcluded) onCreate()
+              }}
             >
               <IconNewChatOutlineRegular size={14} />
             </button>
@@ -353,9 +366,11 @@ function ProjectRow({
         )}
         {hasCreateMenu && (
           <Menu open={createMenuOpen} onClose={closeCreateMenu} anchor={<span ref={plusRef} className={css.iconButton} aria-hidden />} anchorRef={plusRef} align="end" autoFocus portal>
-            <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); onCreate() }}>
-              {t('actions.newSession')}
-            </MenuItemButton>
+            {!defaultBlankExcluded && (
+              <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); onCreate() }}>
+                {t('actions.newSession')}
+              </MenuItemButton>
+            )}
             {createMenuRows}
           </Menu>
         )}
