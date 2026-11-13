@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "PI agent",
+    "description": "Délègue des tâches de code à des sous-agents pi continuables avec leurs propres sessions ; relancez, interrompez et reprenez les sous-agents après un redémarrage.",
+    "detail": "docs/DETAIL.md"
+  }
+}

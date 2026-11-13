@@ -361,6 +361,55 @@ describe('workspace browser rows', () => {
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
+  it('offers an excluded roster group registered rows only, with no plain row or shortcut', () => {
+    const onCreate = vi.fn()
+    const group: GroupNode = {
+      key: 'roster', workspaceId: wid('roster'), cwd: '/repos/roster', createdAt: 0, label: '我的数字员工',
+      sessionCount: 0, expanded: true, containsCurrent: false, sessions: [],
+    }
+    const createItems = (close: () => void) => [
+      <button key="wizard" type="button" onClick={() => { close() }}>数字程序员</button>,
+    ]
+    render(<ProjectRowItem group={group} onToggle={vi.fn()} onCreate={onCreate} t={t}
+      defaultBlankExcluded createItems={createItems}
+      newShortcut={{ id: 'session.new' as never, label: 'New', aliases: [], binding: null, keys: ['Ctrl', 'Alt', 'N'], aria: 'Control+Alt+N', modified: true, conflicts: [], issue: null }} />)
+
+    // The ＋ opens the menu with the registered row; the plain New Session row
+    // (and its shortcut) is absent, and direct creation never fires.
+    fireEvent.click(screen.getByRole('button', { name: '在“我的数字员工”中新建会话' }))
+    expect(screen.getByRole('menu').textContent).not.toContain('新会话')
+    expect(screen.getByRole('menu').textContent).not.toContain('Ctrl')
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('routes the group ＋ through a create menu only while create rows register', () => {
+    const onCreate = vi.fn()
+    const group: GroupNode = {
+      key: 'project', workspaceId: wid('project'), cwd: '/projects/project', createdAt: 0, label: 'Project',
+      sessionCount: 1, expanded: true, containsCurrent: false, sessions: [],
+    }
+    let closed = false
+    const createItems = (close: () => void) => [
+      <button key="wizard" type="button" onClick={() => { closed = true; close() }}>数字程序员</button>,
+    ]
+    render(<ProjectRowItem group={group} onToggle={vi.fn()} onCreate={onCreate} t={t} createItems={createItems} />)
+
+    // The ＋ opens the menu instead of creating directly.
+    fireEvent.click(screen.getByRole('button', { name: '在“Project”中新建会话' }))
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(screen.getByRole('menu')).toBeTruthy()
+
+    // The plain new-Session row keeps its direct behavior inside the menu.
+    fireEvent.click(screen.getByRole('menuitem'))
+    expect(onCreate).toHaveBeenCalledOnce()
+
+    // A registered row receives the owner's close callback.
+    fireEvent.click(screen.getByRole('button', { name: '在“Project”中新建会话' }))
+    fireEvent.click(screen.getByText('数字程序员'))
+    expect(closed).toBe(true)
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
   it('renders and opens a selected running Session row', () => {
     const node: SessionNode = {
       id: sid('session'), title: 'Session', blank: false, running: true,
@@ -902,16 +951,17 @@ describe('workspace browser rows', () => {
     vi.useFakeTimers()
     try {
       const node: SessionNode = {
-        id: sid('s-blank'), title: 'ignored', blank: true, running: false,
+        id: sid('s-blank'), title: '', blank: true, running: false,
         runningSubagentCount: 0, completed: false, updatedAt: 0, pinned: false, archived: false,
       }
       const rendered = vi.fn()
       const renderSlot: RowRenderSlot = (name: RowSlotName) => { rendered(name); return null }
       render(<SessionNodeItem node={node} currentId={node.id} now={0} onOpen={vi.fn()} renderSlot={renderSlot} t={t} />)
-      // The placeholder has no content yet: no row verbs (neither list is
-      // asked for anything), no "now" stamp.
+      // The placeholder has no content yet: no row verbs (the action lists are
+      // not asked for anything) and no "now" stamp; the leading seat is still
+      // offered — occupants decide (an untitled blank has none).
       expect(screen.queryByRole('button', { name: /会话.*的操作/ })).toBeNull()
-      expect(rendered).not.toHaveBeenCalled()
+      expect(rendered).toHaveBeenCalledWith('sidebar.session.row.leading')
       expect(screen.queryByText('刚刚')).toBeNull()
       // The hover card keeps title + status but drops the timestamp line.
       const wrapper = screen.getByRole('treeitem').parentElement as HTMLElement
@@ -932,8 +982,8 @@ describe('workspace browser rows', () => {
       runningSubagentCount: 0, completed: false, updatedAt: 0, pinned: false, archived: false,
       cwd: '/home/u/project',
     }
-    function hoverCard(node: SessionNode): void {
-      render(<SessionNodeItem node={node} currentId={undefined} now={0} onOpen={vi.fn()} home="/home/u" t={t} />)
+    function hoverCard(node: SessionNode, workspaceCwd?: string): void {
+      render(<SessionNodeItem node={node} currentId={undefined} now={0} onOpen={vi.fn()} home="/home/u" t={t} workspaceCwd={workspaceCwd} />)
       fireEvent.pointerEnter(screen.getByRole('treeitem').parentElement as HTMLElement)
       act(() => { vi.advanceTimersByTime(800) })
     }
@@ -953,9 +1003,17 @@ describe('workspace browser rows', () => {
     })
 
     it('shows the directory on a blank New Session card', () => {
-      hoverCard({ ...located, blank: true })
+      hoverCard({ ...located, blank: true, title: '' })
       expect(screen.getAllByText('新会话')).toHaveLength(2)
       expect(screen.getByText('~/project')).toBeTruthy()
+    })
+
+    it('omits the directory when it equals the owning Workspace anchor, keeps it otherwise', () => {
+      hoverCard({ ...located, cwd: '/repos/alpha' }, '/repos/alpha')
+      expect(screen.queryByText('/repos/alpha')).toBeNull()
+      cleanup()
+      hoverCard({ ...located, cwd: '/repos/alpha' }, '/repos/other')
+      expect(screen.getByText('/repos/alpha')).toBeTruthy()
     })
   })
 
@@ -978,11 +1036,20 @@ describe('workspace browser rows', () => {
     cleanup()
     openMenu.mockClear()
     renderFactorySlot.mockClear()
-    render(<SessionNodeItem node={{ ...node, blank: true }} currentId={sid('other')} now={0} onOpen={onOpen}
+    // An untitled blank keeps its placeholder contract: no menu target.
+    render(<SessionNodeItem node={{ ...node, blank: true, title: '' }} currentId={sid('other')} now={0} onOpen={onOpen}
       useContextMenu={contextMenuHook(openMenu)} renderFactorySlot={renderFactorySlot} t={t} />)
     fireEvent.contextMenu(screen.getByRole('treeitem'))
     expect(openMenu).not.toHaveBeenCalled()
     expect(renderFactorySlot).not.toHaveBeenCalled()
+
+    // A titled blank (a created digital employee awaiting its first message)
+    // is a real entity: right-click targets it like any Session row.
+    cleanup()
+    render(<SessionNodeItem node={{ ...node, blank: true }} currentId={sid('other')} now={0} onOpen={onOpen}
+      useContextMenu={contextMenuHook(openMenu)} renderFactorySlot={renderFactorySlot} t={t} />)
+    fireEvent.contextMenu(screen.getByRole('treeitem'), { clientX: 31, clientY: 47 })
+    expect(openMenu).toHaveBeenLastCalledWith({ ...target, value: { ...target.value, displayTitle: 'One' } }, { x: 31, y: 47 })
   })
 
   it('renders the row action list inside the actions area after the menu trigger', () => {
@@ -1329,10 +1396,12 @@ describe('workspace browser rows', () => {
     expect(onRenameRequest).toHaveBeenCalledWith(node.id, 'Named')
     expect(onOpen).toHaveBeenCalledWith(node.id)
 
-    // A blank placeholder has no content to rename: double-click is inert.
+    // A blank row keeps its double-click inert even when it carries a stored
+    // title (a created digital employee awaiting its first message): the title
+    // renders, but there is no content to rename through the row gesture.
     view.rerender(<SessionNodeItem node={{ ...node, blank: true }} currentId={undefined} now={0}
       onOpen={onOpen} onRenameRequest={onRenameRequest} t={t} />)
-    realDoubleClick(screen.getByText('新会话'))
+    realDoubleClick(screen.getByText('Named'))
     expect(onRenameRequest).toHaveBeenCalledOnce()
   })
 
@@ -1501,10 +1570,10 @@ describe('session row decoration seats', () => {
     expect(renderSlot).not.toHaveBeenCalledWith('sidebar.session.row.leading', expect.anything())
   })
 
-  it('never offers the seat for a provisional blank row', () => {
+  it('offers the leading seat to a blank row too (a created employee is blank until its first message)', () => {
     const renderSlot = seatSpy()
     renderRow({ ...idle, blank: true }, renderSlot)
-    expect(renderSlot).not.toHaveBeenCalledWith('sidebar.session.row.leading', expect.anything())
+    expect(renderSlot).toHaveBeenCalledWith('sidebar.session.row.leading', { sessionId: idle.id })
   })
 
   it('renders the schedule section between the relative time and the trailing status line', () => {

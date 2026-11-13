@@ -52,6 +52,7 @@ function workspace(
   id: string,
   sessionIds: readonly SessionId[] = [],
   createdAt = '2026-01-01T00:00:00.000Z',
+  overrides: Partial<WorkspaceView> = {},
 ): WorkspaceView {
   return {
     workspaceId: wid(id),
@@ -60,6 +61,7 @@ function workspace(
     sessionIds,
     createdAt,
     updatedAt: createdAt,
+    ...overrides,
   }
 }
 
@@ -356,6 +358,49 @@ describe('UiWorkspaceService', () => {
     await setImmediate()
     expect(b.workspaces.initializeDefault).not.toHaveBeenCalled()
     expect(b.sessions.create).not.toHaveBeenCalled()
+  })
+
+  it('never provisions a boot blank into a default-blank-excluded Workspace', async () => {
+    const roster = workspace('roster', [], '2026-01-01T00:00:00.000Z', { defaultBlankExcluded: true })
+    const b = bench({ workspaces: workspaceState([roster]), sessions: sessionState() })
+    await setImmediate()
+    expect(b.sessions.create).not.toHaveBeenCalled()
+    expect(b.workspaces.initializeDefault).not.toHaveBeenCalled()
+  })
+
+  it('clears the selection instead of provisioning when the picker selects an excluded Workspace', async () => {
+    const roster = workspace('roster', [], '2026-01-01T00:00:00.000Z', { defaultBlankExcluded: true })
+    const b = bench({ workspaces: workspaceState([roster]), sessions: sessionState() })
+    await b.uiWorkspace.openWorkspace(roster.workspaceId)
+    await setImmediate()
+    expect(b.sessions.create).not.toHaveBeenCalled()
+    expect(b.sessions.list.getSnapshot().ids).toEqual([])
+  })
+
+  it('does not restore a saved blank from an excluded Workspace on boot', async () => {
+    const roster = workspace('roster', [sid('saved-blank')], '2026-01-01T00:00:00.000Z', { defaultBlankExcluded: true })
+    const blank = summary('saved-blank', { blank: true })
+    persistSelection({ sessionId: sid('saved-blank') })
+    const b = bench({
+      workspaces: workspaceState([roster]),
+      sessions: sessionState([blank]),
+    })
+    await setImmediate()
+    expect(b.sessions.create).not.toHaveBeenCalled()
+    expect(b.sessions.list.getSnapshot().byId[sid('saved-blank')]).toBeDefined()
+  })
+
+  it('skips an excluded Workspace for an unscoped New Session even while viewing it', async () => {
+    const roster = workspace('roster', [sid('current')], '2026-01-01T00:00:00.000Z', { defaultBlankExcluded: true })
+    const ordinary = workspace('ordinary', [sid('other')], '2026-01-02T00:00:00.000Z')
+    const b = bench({
+      workspaces: workspaceState([roster, ordinary]),
+      sessions: sessionState([summary('current', { retainedBy: { mainView: 1 } }), summary('other')]),
+    })
+    b.uiWorkspace.startSession(undefined)
+    await setImmediate()
+    // The ordinary Workspace receives the blank; the roster never does.
+    expect(b.sessions.create).toHaveBeenCalledExactlyOnceWith({ workspaceId: ordinary.workspaceId })
   })
 
   it('publishes a startup directory failure once without creating a Session', async () => {

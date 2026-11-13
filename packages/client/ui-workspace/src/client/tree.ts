@@ -221,10 +221,12 @@ export function pinCurrentBlank(
 export type ArchivedFilter = 'default' | 'show' | 'only'
 
 /**
- * Ordinary sessions are visible; among blank sessions, only the current one
- * is visible. Subagent children use their parent header catalog; archived
- * sessions follow the archived filter, while their accounting slots remain
- * either way so unarchiving restores position.
+ * Ordinary sessions are visible; among blank sessions, only the current one is
+ * visible — except a blank that carries a stored title (a created digital
+ * employee awaiting its first message), which is a real entity and stays
+ * visible like any other Session. Subagent children use their parent header
+ * catalog; archived sessions follow the archived filter, while their accounting
+ * slots remain either way so unarchiving restores position.
  */
 function sessionVisible(
   session: SessionSummary,
@@ -233,7 +235,7 @@ function sessionVisible(
   archivedFilter: ArchivedFilter,
 ): boolean {
   if (session.origin === 'subagent') return false
-  if (session.blank && session.id !== current) return false
+  if (session.blank && sessionTitle(session) === '' && session.id !== current) return false
   switch (archivedFilter) {
     case 'default':
       return !archived.has(session.id)
@@ -278,13 +280,13 @@ function sectionMembers(
 }
 
 /**
- * A blank session is the selected Workspace's provisional New Session row;
- * its canonical title never enters search (blank rows are query-excluded)
- * and the renderer localizes its display label. Unnamed history also yields an
- * empty title for localization and does not match a directory-name title search.
+ * Row/search title: the stored trimmed title when present — a blank may still
+ * carry one (a created digital employee awaiting its first message) and must
+ * surface it; an untitled blank yields the empty string for localization, and
+ * untitled history stays out of directory-name search.
  */
 function sessionTitle(session: SessionSummary): string {
-  return session.blank ? '' : (session.title?.trim() ?? '')
+  return session.title?.trim() ?? ''
 }
 
 /** Build one group without projecting session lineage into presentation. */
@@ -562,9 +564,11 @@ export function deriveSearchResults(
   const local: SessionSummary[] = []
   for (const id of list.ids) {
     const summary = list.byId[id]
-    // Blank placeholders never match a query (their canonical title displays
-    // localized, so matching it would tie search to one language).
-    if (summary === undefined || summary.blank || !sessionVisible(summary, current, archived, archivedFilter)) continue
+    // A blank row matches only through a stored title (a created digital
+    // employee awaiting its first message); an untitled placeholder matches
+    // nothing — not its id, not a backend content hit naming it.
+    if (summary === undefined || !sessionVisible(summary, current, archived, archivedFilter)) continue
+    if (summary.blank && sessionTitle(summary) === '') continue
     if (
       sessionTitle(summary).toLowerCase().includes(q)
       || labelOf(summary).toLowerCase().includes(q)
@@ -587,7 +591,8 @@ export function deriveSearchResults(
   for (const summary of orderedLocal) include(summary)
   for (const item of content.items) {
     const summary = list.byId[item.sessionId]
-    if (summary !== undefined && !summary.blank && sessionVisible(summary, current, archived, archivedFilter)) include(summary)
+    if (summary !== undefined && !(summary.blank && sessionTitle(summary) === '')
+      && sessionVisible(summary, current, archived, archivedFilter)) include(summary)
   }
 
   return {

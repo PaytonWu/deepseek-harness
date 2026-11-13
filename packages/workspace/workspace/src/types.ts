@@ -105,6 +105,10 @@ export interface Workspace {
    * @returns resolution after durability.
    */
   setTitle(title: string): Promise<void>
+  /** Whether default-blank fallbacks skip this Workspace; see the record field. */
+  get defaultBlankExcluded(): boolean
+  /** Set whether default-blank fallbacks skip this Workspace. */
+  setDefaultBlankExcluded(excluded: boolean): Promise<void>
 
   /**
    * Prepend a session to this workspace's candidate account. An already

@@ -27,6 +27,8 @@ export interface WorkspaceView {
   readonly createdAt: string
   /** ISO-8601 last-mutation instant. */
   readonly updatedAt: string
+  /** Default-blank fallbacks skip this Workspace; explicit creation still targets it. */
+  readonly defaultBlankExcluded?: true
 }
 
 declare module '@deepseek-ai/dsh-typert-protocol' {

@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "PI agent",
+    "description": "Delega tareas de código en subagentes pi continuables con sesiones propias; envía seguimientos, interrumpe y retoma los subagentes tras un reinicio.",
+    "detail": "docs/DETAIL.md"
+  }
+}

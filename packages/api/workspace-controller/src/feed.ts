@@ -31,6 +31,7 @@ export function workspaceView(workspace: Workspace): WorkspaceView {
     sessionIds: [...workspace.sessionIds],
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt,
+    ...(workspace.defaultBlankExcluded ? { defaultBlankExcluded: true } : {}),
   }
 }
 
@@ -43,6 +44,7 @@ function changedWorkspaceView(workspaceId: string, value: unknown): WorkspaceVie
     sessionIds: [...record.sessionIds],
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    ...(record.defaultBlankExcluded === true ? { defaultBlankExcluded: true } : {}),
   }
 }
 

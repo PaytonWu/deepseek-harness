@@ -1,0 +1,58 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/experimental/pi-agent/README.md
+/:
+  en: b134d8b3b2949b38
+  zh: 711b35dfca622051
+/deepseek-ai-dsh-pi-agent:
+  en: 0e4c5755eeead6eb
+  zh: 079c4669e896d889
+/deepseek-ai-dsh-pi-agent/summary:
+  en: 1ef8246e8c4aaf48
+  zh: d46d1161e81ed492
+/deepseek-ai-dsh-pi-agent/table-of-contents:
+  en: b563e4ec4727d0de
+  zh: e4521549d9f251f0
+/deepseek-ai-dsh-pi-agent/use-this-package:
+  en: 5c67ef4e88f73761
+  zh: 882356c3594e03c6
+/deepseek-ai-dsh-pi-agent/use-this-package/configuration:
+  en: d3ba6b29fe029e74
+  zh: 5985d98f9340b482
+/deepseek-ai-dsh-pi-agent/understand-the-implementation:
+  en: ce223884b48d9a5a
+  zh: 9def3a759cc6d2cd
+/deepseek-ai-dsh-pi-agent/further-exploration:
+  en: 63f05d03f8ab371f
+  zh: 84557caf7467ab54
+/deepseek-ai-dsh-pi-agent/digital-employees:
+  en: 73333b077a71e599
+  zh: 637bcdd8f8894a6f
+/deepseek-ai-dsh-pi-agent/digital-employees/creation-wizard-client-face:
+  en: 703fc84ddc6cb087
+  zh: 8e72c10ad1f0c7e3
+/deepseek-ai-dsh-pi-agent/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/deepseek-ai-dsh-pi-agent/model-experience/request-context-and-condition:
+  en: cd8530c72534ee6b
+  zh: cd8530c72534ee6b
+/deepseek-ai-dsh-pi-agent/model-experience/request-context-and-condition/what-the-model-sees:
+  en: 7db123c6f97b5abe
+  zh: 7db123c6f97b5abe
+/deepseek-ai-dsh-pi-agent/model-experience/request-context-and-condition/what-the-model-sees/verbatim-system-prompt-text:
+  en: 1816cb3fe7427f7f
+  zh: 1816cb3fe7427f7f
+/deepseek-ai-dsh-pi-agent/model-experience/request-context-and-condition/token-effect:
+  en: f7675c3acc1775bd
+  zh: f7675c3acc1775bd
+/deepseek-ai-dsh-pi-agent/model-experience/request-context-and-condition/kv-cache-effect:
+  en: 90c8b484603aea68
+  zh: 5ee75effa30c2e52
+/deepseek-ai-dsh-pi-agent/known-limitations-and-deferred-work:
+  en: 792b169b490c0926
+  zh: 5320d7fc25331f3e
+/deepseek-ai-dsh-pi-agent/known-limitations-and-deferred-work/dev-note:
+  en: 279d01435256cd2a
+  zh: 83780964e5de2f54

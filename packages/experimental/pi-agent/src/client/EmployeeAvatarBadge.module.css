@@ -1,0 +1,22 @@
+/* Session-row employee avatar: the leading 16px cell the clock mark shares. */
+.mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 20px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* Accessible name of the emoji-only mark (same pattern as the row's status
+ * dot labels). */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -121,6 +121,10 @@ Before pushing, follow [dsh-pre-push-checks](.agents/skills/dsh-pre-push-checks/
 - Develop with `build:artifacts`; before claiming completion, run `build:check` after the latest `build:artifacts`, or `build` ([layout](docs/development.md#typescript-project-layout)).
 - **Web browser automation and GIF recording:** launch with `pnpm dsh web --patch apps/web/tests/pin-browse-picker.overlay.yml` to use the [in-page directory picker](apps/web/tests/pin-browse-picker.overlay.yml); omit this override only when testing native picker behavior explicitly.
 
+## Product feature workflow
+
+Product feature work follows **OKR → spec → TDD plan → cross-validation → execution**: write the OKR (`.agents/okr/`), then the spec (`.agents/specs/`), then the TDD plan (`.agents/plans/`); validate the pair both ways — every requirement maps to tests, every test traces back — then execute test-first. Keep the three documents current; they sit outside the bilingual pairing scope and never replace [Agent Notes](.agents/notes/README.md).
+
 ## Secrets / .env
 
 Windows packaging/signing: [required reading](apps/desktop/windows-signing/README.md).

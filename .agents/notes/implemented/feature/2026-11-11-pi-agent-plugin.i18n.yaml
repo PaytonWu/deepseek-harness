@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for 2026-11-11-pi-agent-plugin.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-11-pi-agent-plugin.md
+/agent-note-pi-agent-tool-plugin:
+  en: eadf2f7ab185a1e5
+  zh: fa3ebd254812600d
+/agent-note-pi-agent-tool-plugin/problem:
+  en: 60bf3de68c3584de
+  zh: 19ebcda0fcb38d00
+/agent-note-pi-agent-tool-plugin/decision:
+  en: 6e8160a124912b22
+  zh: 408123b1d20a10ea
+/agent-note-pi-agent-tool-plugin/decision/tool-surface:
+  en: acd2723606d7a454
+  zh: 97f2186554628b48
+/agent-note-pi-agent-tool-plugin/decision/ownership-layers:
+  en: 2d6a23b81dfc108d
+  zh: 964448e775bd4e9b
+/agent-note-pi-agent-tool-plugin/decision/runtime-credentials-and-permissions:
+  en: bbe008d95707cb65
+  zh: 3ed2900acd4cbad9
+/agent-note-pi-agent-tool-plugin/decision/storage-and-lifecycle:
+  en: 5b76d8d115acf61c
+  zh: 0f517423c37870b9
+/agent-note-pi-agent-tool-plugin/decision/surfaces:
+  en: dfdb9c94707ee8fe
+  zh: dc326f8427251d08
+/agent-note-pi-agent-tool-plugin/risks:
+  en: 485d07f7aa05e99f
+  zh: 974c34b094a11103
+/agent-note-pi-agent-tool-plugin/alternatives-considered:
+  en: 1b00b3850f80a71f
+  zh: 35c67ed3bf23f5bb
+/agent-note-pi-agent-tool-plugin/consequences:
+  en: a1a731fc9c5a82a7
+  zh: 25cd428bb03cdc17

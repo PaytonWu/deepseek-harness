@@ -9,8 +9,8 @@
  * `sidebar.workspaces.session.row.action` list. Session and Workspace
  * hover cards are suppressed while their menu is open.
  */
-import { useEffect, useMemo, useRef } from 'react'
-import type { PointerEvent, RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { MouseEvent as ReactMouseEvent, PointerEvent, ReactNode, RefObject } from 'react'
 import clsx from 'clsx'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import {
@@ -21,6 +21,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Menu, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import { abbreviateHomePath } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
@@ -51,9 +52,41 @@ type RowRenderSlots = PropsRenderSlots<
   | 'sidebar.session.row.hover'
 >['renderSlot']
 
-/** Row display title: blank rows show the localized New Session label. */
+/** The ＋ trigger: Tooltip and shortcut hint only when the target group accepts plain new Sessions. */
+function TooltipWithShortcut(props: {
+  show: boolean
+  label: string
+  shortcutKeys: readonly string[] | undefined
+  aria: string | undefined
+  ariaLabel: string
+  buttonRef: RefObject<HTMLButtonElement>
+  onClick: (e: ReactMouseEvent<HTMLButtonElement>) => void
+}): ReactNode {
+  const button = (
+    <button
+      ref={props.buttonRef}
+      type="button"
+      className={css.iconButton}
+      aria-keyshortcuts={props.show ? props.aria : undefined}
+      aria-label={props.ariaLabel}
+      onClick={props.onClick}
+    >
+      <IconNewChatOutlineRegular size={14} />
+    </button>
+  )
+  if (!props.show) return button
+  return (
+    <Tooltip label={props.label} shortcutKeys={props.shortcutKeys} side="bottom" align="end" delayMs={500} portal>
+      {button}
+    </Tooltip>
+  )
+}
+
+/** Row display title: an untitled blank shows the localized New Session label; a titled blank
+ * (a created digital employee awaiting its first message) shows that title. */
 function displayTitle(node: SessionNode, t: RowTranslate): string {
-  return node.blank ? t('session.new') : (node.title || t('session.untitled'))
+  if (node.title !== '') return node.title
+  return node.blank ? t('session.new') : t('session.untitled')
 }
 
 /* Overflow this small hides no meaningful tail; scrolling for it reads as an
@@ -220,7 +253,12 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 /** Owner props of one Workspace header row; the access Hooks are the browser root's own standard seats. */
 type ProjectRowItemProps = {
   group: GroupNode
+  /** This group's Workspace never receives implicit blanks; its ＋ menu offers registered rows only. */
+  defaultBlankExcluded?: boolean
   newShortcut?: ShortcutCatalogEntry | undefined
+  /** Registered create-menu rows given the menu's close callback; the ＋ offers a menu instead of a direct new Session when any render. */
+  createItems?: (close: () => void) => ReactNode
+  closeCreateMenu?: () => void
   containsCurrentDescendant?: boolean
   onToggle: () => void
   onCreate: () => void
@@ -278,9 +316,30 @@ function WorkspaceProjectRow({ workspaceId, ...props }: ProjectRowItemProps & { 
 
 function ProjectRow({
   group, containsCurrentDescendant = false, onToggle, onCreate, drag: offeredDrag, home, newShortcut, t, access,
-  renderFactorySlot, useContextMenuTarget, useContextMenu,
+  createItems, defaultBlankExcluded, renderFactorySlot, useContextMenuTarget, useContextMenu,
 }: ProjectRowItemProps & { access: ProjectRowAccess }) {
   const { getTriggerProps } = useContextMenu()
+  const plusRef = useRef<HTMLButtonElement>(null)
+  const [createMenuOpen, setCreateMenuOpen] = useState(false)
+  const closeCreateMenu = () => { setCreateMenuOpen(false) }
+  const closeTimer = useRef<number | undefined>(undefined)
+  const armCreateMenuClose = (): void => {
+    if (closeTimer.current !== undefined) window.clearTimeout(closeTimer.current)
+    closeTimer.current = window.setTimeout(() => { closeCreateMenu() }, 150)
+  }
+  const cancelCreateMenuClose = (): void => {
+    if (closeTimer.current !== undefined) window.clearTimeout(closeTimer.current)
+    closeTimer.current = undefined
+  }
+  const createMenuRows = createItems === undefined ? undefined : createItems(closeCreateMenu)
+  const registeredRows = Array.isArray(createMenuRows)
+    ? createMenuRows
+    : createMenuRows !== undefined && createMenuRows !== null ? [createMenuRows] : []
+  // The ＋ opens a menu only once rows register. A default-blank-excluded
+  // group (the employee roster) then offers registered rows only — no plain
+  // New Session row, and an inert ＋ without any; other groups keep the T6.4
+  // contract of direct creation before rows register.
+  const hasCreateMenu = registeredRows.length > 0
   const drag = access.reorder ? offeredDrag : undefined
   const row = group
   // The ungrouped bucket has no workspace title: its label is dictionary copy.
@@ -292,7 +351,7 @@ function ProjectRow({
     ? { workspaceId: row.workspaceId, path: row.cwd } : undefined
   const ownRow = (
     <div
-      className={clsx(css.projectRow, menuOpen && css.menuOpen)}
+      className={clsx(css.projectRow, menuOpen && css.menuOpen, createMenuOpen && css.menuOpen)}
       data-row-key={`workspace:${group.key}`}
       role="treeitem"
       aria-expanded={row.expanded}
@@ -308,6 +367,7 @@ function ProjectRow({
           dragPreview.start(e)
         }}
       onDragEnd={() => { if (dragPreview.clear()) drag?.end() }}
+      onMouseLeave={() => { if (createMenuOpen) armCreateMenuClose() }}
     >
       <span className={clsx(css.slot, css.folder, active && css.folderActive)}>
         {row.expanded ? <IconFolderOpenRegular /> : <IconFolderCloseRegular />}
@@ -327,17 +387,31 @@ function ProjectRow({
           })
         )}
         {access.create && (
-          <Tooltip label={t('actions.newSession')} shortcutKeys={newShortcut?.keys} side="bottom" align="end" delayMs={500} portal>
-            <button
-              type="button"
-              className={css.iconButton}
-              aria-keyshortcuts={newShortcut?.aria}
-              aria-label={t('actions.newSession.aria', { name: label })}
-              onClick={(e) => { e.stopPropagation(); onCreate() }}
-            >
-              <IconNewChatOutlineRegular size={14} />
-            </button>
-          </Tooltip>
+          <TooltipWithShortcut
+            show={defaultBlankExcluded !== true}
+            label={t('actions.newSession')}
+            shortcutKeys={newShortcut?.keys}
+            aria={newShortcut?.aria}
+            ariaLabel={t('actions.newSession.aria', { name: label })}
+            buttonRef={plusRef}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (hasCreateMenu) setCreateMenuOpen(true)
+              else if (!defaultBlankExcluded) onCreate()
+            }}
+          />
+        )}
+        {hasCreateMenu && (
+          <Menu open={createMenuOpen} onClose={closeCreateMenu} anchor={null} anchorRef={plusRef} align="end" autoFocus portal>
+            <div onMouseEnter={cancelCreateMenuClose} onMouseLeave={armCreateMenuClose}>
+              {!defaultBlankExcluded && (
+                <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); onCreate() }}>
+                  {t('actions.newSession')}
+                </MenuItemButton>
+              )}
+              {createMenuRows}
+            </div>
+          </Menu>
         )}
       </span>
     </div>
@@ -593,7 +667,7 @@ export function SearchResultItem({
  */
 export function SessionNodeItem({
   node, currentId, now, onOpen, onRenameRequest, renderSlot, renderFactorySlot, useContextMenuTarget,
-  useContextMenu, onReveal, drag, home, useSessionAccess, t,
+  useContextMenu, onReveal, drag, home, useSessionAccess, t, workspaceCwd,
 }: {
   useContextMenu: WorkspaceBrowserProps['useContextMenu']
   renderFactorySlot: WorkspaceBrowserProps['renderFactorySlot']
@@ -610,6 +684,9 @@ export function SessionNodeItem({
   drag?: RowDragProps | undefined
   /** Host account home; POSIX home-rooted hover paths display as `~`. */
   home?: string | undefined
+  /** The owning Workspace's anchored directory; grouped rows only. The hover card omits the session
+   * directory when it matches (membership already says it), and absent in the flat list. */
+  workspaceCwd?: string | undefined
   t: RowTranslate
 } & Pick<WorkspaceBrowserProps, 'useSessionAccess'> & PropsRenderSlots<
   | 'sidebar.workspaces.session.row.action'
@@ -664,7 +741,7 @@ export function SessionNodeItem({
       tabIndex={0}
 
       onClick={() => { onOpen(node.id) }}
-      {...getTriggerProps(row.blank ? undefined : { kind: 'session', value: { sessionId: node.id, displayTitle: row.title } }, { onKeyDown: (event) => {
+      {...getTriggerProps(row.blank && row.title === '' ? undefined : { kind: 'session', value: { sessionId: node.id, displayTitle: row.title } }, { onKeyDown: (event) => {
         if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
         event.preventDefault()
@@ -704,7 +781,7 @@ export function SessionNodeItem({
           blank — the grayed row carries the archived look — and their live
           status stays on the hover card only. */}
       <span className={css.slot}>
-        {!row.archived && !row.blank && (showStatus
+        {!row.archived && (showStatus
           ? <SessionStatusDots statuses={statuses} />
           : renderSlot('sidebar.session.row.leading', { sessionId: node.id }))}
       </span>
@@ -764,7 +841,7 @@ export function SessionNodeItem({
       anchor={ownRow}
       content={<SessionHoverContent
         node={node}
-        cwd={row.cwd === undefined ? undefined : abbreviateHomePath(row.cwd, home)}
+        cwd={row.cwd === undefined || row.cwd === workspaceCwd ? undefined : abbreviateHomePath(row.cwd, home)}
         now={now}
         renderSlot={renderSlot}
         t={t}

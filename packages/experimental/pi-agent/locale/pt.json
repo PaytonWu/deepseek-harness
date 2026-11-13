@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "pi agent",
+    "description": "Executa tarefas de código delegadas como subagentes pi continuáveis com sessões próprias, com mensagens de acompanhamento, interrupção e registros que sobrevivem a reinícios."
+  }
+}
