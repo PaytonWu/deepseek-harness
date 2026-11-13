@@ -36,6 +36,8 @@ export interface EmployeeDirectoryDeps {
   readonly piAgentHome?: string
   /** Whether an employee currently has a live pi child; powers the status tool. */
   readonly isChildLive?: (employeeId: string) => boolean
+  /** Ensure the employee's pi child (dispatch tool injects through it). */
+  readonly ensureChild: (employee: EmployeeRecord) => Promise<{ child: { sendPrompt(text: string): Promise<string> } }>
 }
 
 /** Employee CRUD and session orchestration over the Typert gateway. */
@@ -151,6 +153,13 @@ export class EmployeeDirectoryService extends TypertRemoteService {
 `, { mode: 0o600, dirMode: 0o700 })
   }
 
+  /** The management tool endpoint of one admin; unknown id throws. */
+  adminToolEndpoint(adminId: string): string {
+    const server = this.adminServers.get(adminId)
+    if (server === undefined) throw new Error(`pi-agent: admin ${adminId} has no tool server`)
+    return server.endpoint
+  }
+
   /** Stop every admin tool server (plugin shutdown). */
   async stopAdminServers(): Promise<void> {
     await Promise.resolve()
@@ -181,8 +190,21 @@ export class EmployeeDirectoryService extends TypertRemoteService {
           .filter(row => row.managerId === adminId)
           .map(row => ({ name: row.name, running: this.deps.isChildLive?.(row.id) === true })),
       }),
-      dispatchTask: () => Promise.resolve({ dispatched: false, message: '尚未接线（Stage 6）' }),
-      employeeStatus: () => Promise.resolve({ message: '尚未接线（Stage 6）' }),
+      dispatchTask: async ({ employee: employeeName, message }) => {
+        const employee = this.deps.store.list().find(row => row.name === employeeName || row.id === employeeName)
+        if (employee === undefined) return { dispatched: false, message: `没有名为「${employeeName}」的数字程序员` }
+        if (employee.managerId !== adminId) return { dispatched: false, message: `「${employee.name}」不在本管理员的绑定名单中` }
+        const { child } = await this.deps.ensureChild(employee)
+        await child.sendPrompt(message)
+        return { dispatched: true, message: `已派发给「${employee.name}」` }
+      },
+      employeeStatus: ({ employee: employeeName }) => {
+        const employee = this.deps.store.list().find(row => row.name === employeeName || row.id === employeeName)
+        if (employee === undefined) return Promise.resolve({ message: `没有名为「${employeeName}」的数字程序员` })
+        if (employee.managerId !== adminId) return Promise.resolve({ message: `「${employee.name}」不在本管理员的绑定名单中` })
+        const live = this.deps.isChildLive?.(employee.id) === true
+        return Promise.resolve({ message: `「${employee.name}」当前${live ? '运行中' : '空闲'}${employee.piSessionFile === undefined ? '（尚未开始第一次对话）' : ''}` })
+      },
     }
   }
 
@@ -243,6 +265,7 @@ function employeeView(record: EmployeeRecord): EmployeeView {
     avatar: record.avatar,
     description: record.description,
     cwd: record.cwd,
+    ...record.managerId !== undefined ? { managerId: record.managerId } : {},
     ...record.piModel !== undefined ? { piModel: record.piModel } : {},
     ...record.thinking !== undefined ? { thinking: record.thinking } : {},
     ...record.piSessionFile !== undefined ? { piSessionFile: record.piSessionFile } : {},

@@ -70,7 +70,7 @@
 
 实现：`src/admin/inbound.ts`（消费 Transport.receive）。
 
-## Stage 6 — 管理员工具（M8）
+## Stage 6 — 管理员工具（M8）✅
 
 测试先行（`tests/admin-tools.spec.ts`，stub transport + stub store）：
 

@@ -58,6 +58,7 @@ async function setup() {
   const service = new EmployeeDirectoryService(ctx, {
     store,
     disposeChild: async (employeeId) => { disposed.push(employeeId) },
+    ensureChild: async () => ({ child: { sendPrompt: async () => 'ok' } }),
     listPiModels: async () => {
       piModelQueries.count += 1
       return [{ provider: 'stub', modelId: 'stub-chat', name: 'Stub Chat' }]
@@ -143,6 +144,7 @@ describe('EmployeeDirectoryService Stage 2 (M3, T2.1-T2.3)', () => {
     const view = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员A', cwd: undefined as unknown as string }))
     expect(view.cwd).toBe(workspacePath)
     expect(created).toHaveLength(1)
+    expect(attached).toHaveLength(1)
     expect(created[0]!.cwd).toBe(workspacePath)
     expect(created[0]!.provider).toBe(PI_EMPLOYEE_PROVIDER)
     expect(created[0]!.model).toBe(view.id)
@@ -150,8 +152,7 @@ describe('EmployeeDirectoryService Stage 2 (M3, T2.1-T2.3)', () => {
   })
 
   it('exposes the management tool server on admin creation: .pi/mcp.json + trust + five tools (T2.3)', async () => {
-    const { service, store, created, attached, workspacePath, piAgentHome, request } = await setup()
-    void attached
+    const { service, store, workspacePath, piAgentHome, request } = await setup()
     const view = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员A' }))
     await service.create(request({ name: '小张' }))
 
@@ -171,11 +172,10 @@ describe('EmployeeDirectoryService Stage 2 (M3, T2.1-T2.3)', () => {
       'create_employee', 'destroy_employee', 'dispatch_task', 'employee_status', 'list_employees',
     ])
     const call = await client.callTool({ name: 'list_employees', arguments: {} })
-    const text = (call.content as Array<{ type: string; text: string }>)[0]?.text ?? ''
+    const text = toolText(call)
     expect(text).toContain('小张')
     expect(text).not.toContain('管理员A')
     void store
-    void created
     await client.close()
     void view
   })
@@ -191,4 +191,73 @@ async function mcpClientFor(url: string): Promise<{
   const transport = new StreamableHTTPClientTransport(new URL(url))
   await client.connect(transport)
   return client
+}
+
+describe('EmployeeDirectoryService Stage 6 (M8, T6.1-T6.6) admin tools', () => {
+  it('create_employee binds to the calling admin and answers with the employee name (T6.1)', async () => {
+    const { service, request, cwd } = await setup()
+    const admin = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员A' }))
+    await service.create(request({ name: '小张' }))
+    const client = await mcpClientFor(adminToolUrl(service, admin.id))
+    const call = await client.callTool({ name: 'create_employee', arguments: { name: '小李', cwd } })
+    const text = toolText(call)
+    expect(text).toContain('小李')
+    const bound = service.list().find(row => row.name === '小李')!
+    expect(bound?.managerId).toBe(admin.id)
+    await client.close()
+  })
+
+  it('destroy_employee removes a bound employee and refuses one bound to another admin (T6.2, T6.3)', async () => {
+    const { service, request } = await setup()
+    const admin = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员A' }))
+    const adminB = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员B' }))
+    await service.create(request({ name: '小张', managerId: admin.id }))
+    const stranger = await service.create(request({ name: '外人', managerId: adminB.id }))
+    void stranger
+    const client = await mcpClientFor(adminToolUrl(service, admin.id))
+    const refused = toolText(await client.callTool({ name: 'destroy_employee', arguments: { name: '外人' } }))
+    expect(refused).toContain('不在本管理员的绑定名单')
+    expect(service.list().find(row => row.name === '外人')).toBeDefined()
+    const ok = toolText(await client.callTool({ name: 'destroy_employee', arguments: { name: '小张' } }))
+    expect(ok).toContain('已销毁')
+    expect(service.list().find(row => row.name === '小张')).toBeUndefined()
+    await client.close()
+  })
+
+  it('list_employees returns only the calling admin bound set (T6.4)', async () => {
+    const { service, request } = await setup()
+    const admin = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员A' }))
+    await service.create(request({ name: '小张' }))
+    await service.create(request({ name: '小李' }))
+    await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员B' }))
+    const client = await mcpClientFor(adminToolUrl(service, admin.id))
+    const text = toolText(await client.callTool({ name: 'list_employees', arguments: {} }))
+    expect(text).toContain('小张')
+    expect(text).toContain('小李')
+    expect(text).not.toContain('管理员B')
+    await client.close()
+  })
+
+  it('dispatch_task and employee_status land in the tool layer as Stage 6 stubs', async () => {
+    const { service, request } = await setup()
+    const admin = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员A' }))
+    await service.create(request({ name: '小张', managerId: admin.id }))
+    const client = await mcpClientFor(adminToolUrl(service, admin.id))
+    const dispatch = toolText(await client.callTool({ name: 'dispatch_task', arguments: { employee: '小张', message: '干活' } }))
+    expect(dispatch).toContain('已派发给')
+    const status = toolText(await client.callTool({ name: 'employee_status', arguments: { employee: '小张' } }))
+    expect(status).toContain('空闲')
+    await client.close()
+  })
+})
+
+/** The management tool endpoint of one admin. */
+function adminToolUrl(service: EmployeeDirectoryService, adminId: string): string {
+  return service.adminToolEndpoint(adminId)
+}
+
+/** The first text chunk of an MCP tool result. */
+function toolText(result: { content: unknown }): string {
+  const content = (result as { content?: Array<{ type: string; text: string }> }).content ?? []
+  return content.map(chunk => chunk.text).join(String.fromCharCode(10))
 }
