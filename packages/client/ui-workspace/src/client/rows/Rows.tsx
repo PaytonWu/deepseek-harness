@@ -352,7 +352,7 @@ function ProjectRow({
           </Tooltip>
         )}
         {hasCreateMenu && (
-          <Menu open={createMenuOpen} onClose={closeCreateMenu} anchor={<span ref={plusRef} className={css.iconButton} aria-hidden />} anchorRef={plusRef} align="end" autoFocus>
+          <Menu open={createMenuOpen} onClose={closeCreateMenu} anchor={<span ref={plusRef} className={css.iconButton} aria-hidden />} anchorRef={plusRef} align="end" autoFocus portal>
             <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); onCreate() }}>
               {t('actions.newSession')}
             </MenuItemButton>

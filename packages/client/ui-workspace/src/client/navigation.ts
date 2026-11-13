@@ -307,6 +307,17 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     beforeOpen: ((sessionId: SessionId) => void) | undefined,
     reuse: Pick<StartSessionOptions, 'agentPreset'>,
   ): Promise<void> {
+    // A default-blank-excluded Workspace is view-only through this path: the
+    // workspace picker selecting it shows its sessions without provisioning a
+    // composer blank (and saves no blank selection, so no refresh restores
+    // one). The group header's explicit New Session still provisions through
+    // startSession's own connectWorkspace call.
+    const target = this.workspaces.list.getSnapshot().items
+      .find(item => item.workspaceId === workspaceId)
+    if (target !== undefined && target.defaultBlankExcluded === true) {
+      this.clearMain()
+      return
+    }
     const navigation = AbortSignal.any([this.ctx.layout.beginNavigation(), this.lifetime.signal])
     let sessionId: SessionId
     try {
@@ -480,8 +491,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const navigation = AbortSignal.any([this.ctx.layout.beginNavigation(), this.lifetime.signal])
     this.restorationNavigation = navigation
     let sessionId: SessionId | undefined
-    if (summary !== undefined && workspace !== undefined && summary.cwd === workspace.path
-      && !workspaces.archivedSessionIds.includes(summary.id)) {
+    if (summary !== undefined && workspace !== undefined && workspace.defaultBlankExcluded !== true
+      && summary.cwd === workspace.path && !workspaces.archivedSessionIds.includes(summary.id)) {
       sessionId = await this.restoreBlank(workspace.workspaceId, summary.id)
     }
     const savedWorkspaceTarget = workspace !== undefined && workspace.defaultBlankExcluded !== true
