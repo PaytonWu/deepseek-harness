@@ -6,7 +6,8 @@
     "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
   },
   "include": [
-    "src/*.ts"
+    "src/*.ts",
+    "src/admin/*.ts"
   ],
   "references": [
     {

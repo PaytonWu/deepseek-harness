@@ -72,7 +72,8 @@ export interface EmployeeCreateInput {
   readonly name?: string
   readonly avatar?: string
   readonly description?: string
-  readonly cwd: string
+  /** Working directory; the admin orchestration supplies the group directory. */
+  readonly cwd?: string
   /** IM channel; required for an admin, rejected on any other type. */
   readonly channel?: EmployeeChannel
   /** Admin to bind; omitted resolves to the sole admin, ambiguous with many. */
@@ -134,7 +135,9 @@ export class EmployeeStore {
     // therefore rejected) on any other type.
     const channel = this.resolveChannel(type, input.channel)
     const managerId = this.resolveManagerId(type, input.managerId)
-    if (!isDirectory(input.cwd)) throw new Error(`pi-agent: employee cwd is not an existing directory: ${input.cwd}`)
+    if (input.cwd === undefined || !isDirectory(input.cwd)) {
+      throw new Error(`pi-agent: employee cwd is not an existing directory: ${String(input.cwd)}`)
+    }
     if (input.piSessionFile !== undefined && !existsSync(input.piSessionFile)) {
       throw new Error(`pi-agent: imported pi session file does not exist: ${input.piSessionFile}`)
     }

@@ -10711,9 +10711,18 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      '@modelcontextprotocol/client':
+        specifier: 2.2.0
+        version: 2.2.0
+      '@modelcontextprotocol/server':
+        specifier: 2.2.0
+        version: 2.2.0
       cross-spawn:
         specifier: ^7.0.6
         version: 7.0.6
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~

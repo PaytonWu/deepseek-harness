@@ -25,7 +25,7 @@
 
 实现：`src/employee-store.ts` 扩展。
 
-## Stage 2 — 管理员会话编排（M3）
+## Stage 2 — 管理员会话编排（M3）✅
 
 测试先行（`tests/employee-directory.spec.ts` 扩展）：
 
