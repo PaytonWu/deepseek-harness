@@ -2,7 +2,7 @@
 
 状态：已交叉验证（2026-11-13，见文末矩阵）
 关联：[spec](../specs/digital-administrator.md) · [OKR](../okr/2026-Q4-digital-administrator.md)
-底座：数字员工 plan（`digital-employees-tdd.md`）Stages 0–6 全部落地；本 plan 在其上新增管理层，测试编号 T8.x 起（避免与数字员工 plan 的 T1–T6 混淆）。
+底座：数字员工 plan（`digital-employees-tdd.md`）Stages 0–6 全部落地；本 plan 在其上新增管理层；测试编号 T0–T8 为本 plan 局部命名（与数字员工 plan 的 T1–T6 分文件不冲突）。
 
 ## Stage 0 — 通道 spike（调研，不写产品代码）
 
@@ -15,11 +15,12 @@
 
 测试先行（`packages/experimental/pi-agent/tests/employee-store.spec.ts` 扩展）：
 
-- T1.1 admin 记录：`type: 'admin'` + `channel: 'dingtalk'` 校验（非 admin 带 channel 拒绝；admin 缺 channel 拒绝）。
+- T1.1 admin 记录：`type: 'admin'` + `channel: 'dingtalk'` 校验（非 admin 带 channel 拒绝；admin 缺 channel 拒绝）；类型预设填充（admin 职责模板 + emoji，同 pi-coder 机制）；admin 的 cwd 免用户校验（编排层固定分组目录，store 不拒绝无用户 cwd 的 admin）。
 - T1.2 `managerId` 校验：指向不存在的管理员拒绝；指向 admin 类型才合法；pi-coder 不可作为 managerId。
 - T1.3 创建自动绑定：`managerId` 缺省时唯一管理员自动补；多个管理员且缺省 → 拒绝（要求显式）。
 - T1.4 删除管理员：其绑定员工 `managerId` 全部清空（解绑不删除）。
 - T1.5 删除员工：记录移除即解绑（无残留引用）。
+- T1.7 人工删除不受限：dsh 侧删除不检查 `managerId`（无管理员/未绑定员工同样可删）——受限的只有管理员工具路径（Stage 4）。
 - T1.6 旧记录迁移回填：无 `type`/`channel` 的既有记录补 `type: 'pi-coder'`。
 
 实现：`src/employee-store.ts` 扩展。
@@ -85,7 +86,7 @@
 
 ## Stage 7 — 向导与命令（M1, M3, M9）
 
-- T7.1 类型步骤：向导第一步两类型卡片；选数字管理员 → 精简字段（无 cwd）；选数字程序员 → 既有五字段。组件测试。
+- T7.1 类型步骤：向导第一步两类型卡片；选数字管理员 → 精简字段（无 cwd，模型/思考保留）；选数字程序员 → 既有五字段。组件测试。
 - T7.2 多管理员选择：存在多个管理员时创建一线员工需显式选择（向导步骤 / 命令参数）；组件与命令测试。
 - T7.3 locale：8 语言字典键齐全（两类型文案、工具相关 toast）。
 - T7.4 文档：pi-agent README 双语（管理员章节）、experimental 组表。
@@ -107,7 +108,7 @@
 | M6 生命周期通知 | T3.6 T6.1 T6.2 | 3,6 |
 | M7 白名单与注入 | T5.1–T5.4 | 5 |
 | M8 管理员工具 | T6.1–T6.7 | 6 |
-| M9 dsh 侧路径 | T1.3 T7.2 | 1,7 |
+| M9 dsh 侧路径 | T1.3 T1.5 T1.7 T7.2 | 1,7 |
 | M10 通道配置 | T4.4 | 4 |
 
 反向核对：T0.x 为 spike（决议落档，对应 KR4 的 Transport 签名定稿）；T1.x–T8.x 每条均出现在矩阵左列（T7.3/T7.4 locale 与文档对应 KR5 质量门槛，T8.1/T8.2 对应 KR5）。
