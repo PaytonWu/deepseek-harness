@@ -17,10 +17,18 @@ export const EMPLOYEE_TYPES = {
     description: '你是数字程序员，负责编码任务。收到消息后按要求完成任务并简要汇报。',
     emoji: '🧑‍💻',
   },
+  'admin': {
+    label: '数字管理员',
+    description: '你是数字管理员，负责管理用户的数字程序员团队：分派任务、跟踪进度、汇总反馈。收到消息后调用可用工具完成任务并简要汇报。',
+    emoji: '🧑‍💼',
+  },
 } as const
 
 /** Employee type id. */
 export type EmployeeTypeId = keyof typeof EMPLOYEE_TYPES
+
+/** IM channel of a management-layer employee; the transport implementation is selected by it. */
+export type EmployeeChannel = 'dingtalk'
 
 /** One selectable pi model for an employee. */
 export interface EmployeePiModel {
@@ -42,6 +50,10 @@ export interface EmployeeRecord {
   description: string
   /** Working directory the employee's pi child runs in. */
   cwd: string
+  /** IM channel; admins only (a first-line employee is never channeled). */
+  channel?: EmployeeChannel
+  /** The admin managing this employee; first-line employees only. */
+  managerId?: string
   /** Pi model override for this employee's children. */
   piModel?: EmployeePiModel
   /** Thinking level applied once when a child starts: off/low/medium/high; omitted follows pi. */
@@ -61,6 +73,10 @@ export interface EmployeeCreateInput {
   readonly avatar?: string
   readonly description?: string
   readonly cwd: string
+  /** IM channel; required for an admin, rejected on any other type. */
+  readonly channel?: EmployeeChannel
+  /** Admin to bind; omitted resolves to the sole admin, ambiguous with many. */
+  readonly managerId?: string
   readonly piModel?: EmployeePiModel
   readonly thinking?: 'off' | 'low' | 'medium' | 'high'
   readonly piSessionFile?: string
@@ -114,6 +130,10 @@ export class EmployeeStore {
     const preset = EMPLOYEE_TYPES[type]
     const name = input.name === undefined || input.name.trim().length === 0 ? this.defaultName(type) : input.name.trim()
     const description = input.description === undefined || input.description.trim().length === 0 ? preset.description : input.description
+    // Channel is the admin's IM dimension: required there, meaningless (and
+    // therefore rejected) on any other type.
+    const channel = this.resolveChannel(type, input.channel)
+    const managerId = this.resolveManagerId(type, input.managerId)
     if (!isDirectory(input.cwd)) throw new Error(`pi-agent: employee cwd is not an existing directory: ${input.cwd}`)
     if (input.piSessionFile !== undefined && !existsSync(input.piSessionFile)) {
       throw new Error(`pi-agent: imported pi session file does not exist: ${input.piSessionFile}`)
@@ -128,6 +148,8 @@ export class EmployeeStore {
       avatar: input.avatar === undefined || input.avatar.trim().length === 0 ? preset.emoji : input.avatar,
       description,
       cwd: input.cwd,
+      ...channel !== undefined ? { channel } : {},
+      ...managerId !== undefined ? { managerId } : {},
       ...input.piModel !== undefined ? { piModel: input.piModel } : {},
       ...input.thinking !== undefined ? { thinking: input.thinking } : {},
       ...input.piSessionFile !== undefined ? { piSessionFile: input.piSessionFile } : {},
@@ -136,6 +158,33 @@ export class EmployeeStore {
     this.records.set(record.id, record)
     await this.save()
     return record
+  }
+
+  /** Validate the channel against the employee type; admins require one. */
+  private resolveChannel(type: EmployeeTypeId, channel: EmployeeChannel | undefined): EmployeeChannel | undefined {
+    if (type === 'admin') {
+      if (channel === undefined) throw new Error('pi-agent: an admin employee requires a channel (e.g. dingtalk)')
+      return channel
+    }
+    if (channel !== undefined) throw new Error('pi-agent: only an admin employee carries a channel')
+    return undefined
+  }
+
+  /** Resolve the binding: omitted binds the sole admin; ambiguous or unknown ids reject. */
+  private resolveManagerId(type: EmployeeTypeId, managerId: string | undefined): string | undefined {
+    if (type !== 'pi-coder') {
+      if (managerId !== undefined) throw new Error('pi-agent: an admin employee cannot be managed (managerId rejected)')
+      return undefined
+    }
+    if (managerId !== undefined) {
+      const manager = this.records.get(managerId)
+      if (manager === undefined) throw new Error(`pi-agent: managerId does not resolve to an employee: ${managerId}`)
+      if (manager.type !== 'admin') throw new Error(`pi-agent: managerId must point at an admin, not a ${manager.type}`)
+      return managerId
+    }
+    const admins = this.list().filter(employee => employee.type === 'admin')
+    if (admins.length > 1) throw new Error('pi-agent: multiple admins exist; pick one explicitly (managerId)')
+    return admins[0]?.id
   }
 
   /** Next "数字程序员 N"-style default name for one type. */
@@ -179,10 +228,22 @@ export class EmployeeStore {
     await this.save()
   }
 
-  /** Remove and persist one employee. */
+  /**
+   * Remove and persist one employee. The human path is unrestricted; deleting
+   * an admin unbinds its whole team (the employees stay, `managerId` clears).
+   */
   async delete(id: string): Promise<void> {
-    if (!this.records.has(id)) throw new Error(`pi-agent: unknown employee ${id}`)
+    const removed = this.records.get(id)
+    if (removed === undefined) throw new Error(`pi-agent: unknown employee ${id}`)
     this.records.delete(id)
+    if (removed.type === 'admin') {
+      for (const [employeeId, employee] of this.records) {
+        if (employee.managerId !== id) continue
+        const { managerId: _managerId, ...unbound } = employee
+        void _managerId
+        this.records.set(employeeId, unbound)
+      }
+    }
     await this.save()
   }
 

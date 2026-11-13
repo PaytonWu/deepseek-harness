@@ -11,7 +11,7 @@
 - T0.3 通知目标确认：私人通知群的群 id（用户侧准备）；确认白名单 userId。
 - 完成标准：三问有结论 + 决议落档；Transport 接口签名据此定稿。
 
-## Stage 1 — 数据层（M1, M2）
+## Stage 1 — 数据层（M1, M2）✅
 
 测试先行（`packages/experimental/pi-agent/tests/employee-store.spec.ts` 扩展）：
 
