@@ -4,7 +4,7 @@
 关联：[spec](../specs/digital-administrator.md) · [OKR](../okr/2026-Q4-digital-administrator.md)
 底座：数字员工 plan（`digital-employees-tdd.md`）Stages 0–6 全部落地；本 plan 在其上新增管理层；测试编号 T0–T8 为本 plan 局部命名（与数字员工 plan 的 T1–T6 分文件不冲突）。
 
-## Stage 0 — 通道 spike（调研，不写产品代码）
+## Stage 0 — 通道 spike（调研，不写产品代码）✅ 决议见文末决议节
 
 - T0.1 dws 发送能力：`dws chat` 发消息到指定群/自己的调用语法、输出格式、失败形态。产出：命令样例 + 解析结论落本文件决议节。
 - T0.2 dws 接收能力：`dws event` 长连接子进程的启动/输出格式/断线行为；消息事件里发送者 userId 与内容的解析路径。产出：子进程管理样例 + 事件 schema 草案。
@@ -113,4 +113,18 @@
 
 反向核对：T0.x 为 spike（决议落档，对应 KR4 的 Transport 签名定稿）；T1.x–T8.x 每条均出现在矩阵左列（T7.3/T7.4 locale 与文档对应 KR5 质量门槛，T8.1/T8.2 对应 KR5）。
 
-## Stage 0 决议（执行后落档）
+## Stage 0 决议（2026-11-13 spike，真机验证）
+
+**T0.1 发送（已验证）。** 命令：`dws chat +send-to-group --group <群名或ID> --content <文本> --yes --format json`。返回 `{ success, result.openTaskId }`；`openTaskId` 与事件的 `message_id` 不可关联。**非交互环境必须 `--yes`**（confirmation_required 门，Host spawn 一律携带）。
+
+**T0.2 接收（已验证）。** 命令：`dws event +listen-im --kind group --chat-query <群名> --format json`。启动输出 ready 行（`[event] ready event_key=user_im_message_receive_group bus_pid=… subscribe_id=…`，bus `idle_timeout=300s`），之后每条消息一行 JSON：`{ type, event_id, message_id, conversation_id, sender, sender_open_dingtalk_id, content, create_time, event_time }`。停止：`dws event status` / `dws event stop <subscribe_id> --yes`（停订阅同时停 bus）。
+
+**T0.3 通知目标（已建立）。** 通知群「数字管理员通知」，openConversationId = `cidIEd64NRF/Jr+yTuLnk+0SQ==`；所有者 PaytonWu，openDingTalkId = `D77ZLdiS2VYTllxdpMj5Yxc9ZiPq2NZqhLu`（白名单键），userId = `01014034531454088201`。
+
+**派生实现决策：**
+1. **白名单键用 `sender_open_dingtalk_id`**（事件携带；settings 白名单存该值）。
+2. **自消息回环过滤**：管线发送走 dws（以用户身份），其通知也会成为事件且 sender 与用户相同——无法按发送者区分。管线发送的每条消息一律以 `【` 开头（【数字管理员】/【系统】/【名】反馈：），入站过滤丢弃 `【` 开头的消息；用户真实指令不会以此开头。
+3. **监听器必须被监督**：bus `idle_timeout=300s` 会自行退出——Transport 以"可重启的受监督子进程"持有监听（退出即带退避重启；重启后 subscribe_id 变化无状态可丢，事件为即时通知无补发）。
+4. **conversation_id 双向过滤**：入站只接受 `conversation_id` == 配置通知群的群 id 的事件（多群监听误入防线）。
+
+对 plan 的影响：Stage 4 的 dws Transport 按上述命令与过滤实现；Stage 5 的白名单键与回环过滤按 1/2 落地。
