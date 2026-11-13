@@ -59,7 +59,7 @@
 
 实现：`src/admin/transport.ts`（接口）+ `src/admin/dws-transport.ts`（dws 实现）。
 
-## Stage 5 — 白名单与双向注入（M7）
+## Stage 5 — 白名单与双向注入（M7）✅
 
 测试先行（`tests/admin-inbound.spec.ts`）：
 

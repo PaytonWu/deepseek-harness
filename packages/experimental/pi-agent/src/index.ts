@@ -22,6 +22,9 @@ import { EmployeeStore } from './employee-store.ts'
 import type { EmployeeRecord } from './employee-store.ts'
 import { EmployeeDirectoryService } from './employee-directory.ts'
 import { PI_EMPLOYEE_PROVIDER, PiEmployeeAdapter } from './employee-adapter.ts'
+import { AdminFeedbackPipeline } from './admin/pipeline.ts'
+import { DwsTransport } from './admin/dws-transport.ts'
+import { AdminInboundDispatcher } from './admin/inbound.ts'
 import { newEmployeeCommand } from './employee-command.ts'
 export type { EmployeeCreateRequest, EmployeeDeleteRequest, EmployeeUpdateRequest, EmployeeView } from './types.ts'
 
@@ -53,6 +56,12 @@ export interface Config {
   maxChildren?: number
   /** Display title of the digital-employee Workspace group. */
   groupTitle?: string
+  /** DingTalk notification group's openConversationId; set to enable the admin channel. */
+  dingtalkGroupId?: string
+  /** Whitelisted sender openDingTalkIds allowed to instruct admins. */
+  dingtalkAllowedSenderIds?: string[]
+  /** Who answers inbound admin instructions: 'admin' routes through the admin session; 'echo' sends an acknowledgement only. */
+  dingtalkInboundReply?: string
 }
 
 /** Schemastery configuration for the pi agent tool consumer. */
@@ -65,6 +74,9 @@ export const Config: z<Config> = z.object({
   env: z.dict(z.string()).default({}),
   maxChildren: z.number().step(1).min(MIN_MAX_CHILDREN).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_CHILDREN),
   groupTitle: z.string().default('我的数字员工'),
+  dingtalkGroupId: z.string(),
+  dingtalkAllowedSenderIds: z.array(z.string()).default([]),
+  dingtalkInboundReply: z.string().default('admin'),
 })
 
 interface PiAgentArgs {
@@ -171,6 +183,52 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     employeeOf: employeeId => store.get(employeeId),
     ensureChild,
   }))
+  // The DingTalk management channel: feedback relay + inbound instruction
+  // dispatch. Inbound instructions from whitelisted senders go through the
+  // admin's own pi session; the settled answer goes back out over IM.
+  if (config.dingtalkGroupId !== undefined) {
+    const transport = new DwsTransport({ notificationGroupId: config.dingtalkGroupId })
+    const pipeline = new AdminFeedbackPipeline({
+      transport,
+      store,
+      logger: { warn: (message) => { ctx.logger.warn(message) } },
+    })
+    const dispatchers = new Map<string, AdminInboundDispatcher>()
+    const inbound = new AdminInboundDispatcher({
+      store,
+      ensureForAdmin: async (adminId: string) => {
+        const record = store.get(adminId)
+        if (record === undefined) throw new Error(`pi-agent: unknown admin ${adminId}`)
+        const { child } = await ensureChild(record)
+        return {
+          inject: async (text: string) => { await child.sendPrompt(text) },
+          answer: async () => (await child.lastAssistantText()) ?? '',
+        }
+      },
+      transport,
+      whitelist: config.dingtalkAllowedSenderIds ?? [],
+      logger: { warn: (message) => { ctx.logger.warn(message) } },
+      adminOnline: true,
+    })
+    void inbound
+    void dispatchers
+    const adapterSettled = (employeeId: string, answer: string): void => {
+      void pipeline.onEmployeeTurnSettled(employeeId, answer).catch(() => undefined)
+    }
+    void adapterSettled
+    ctx.effect(() => async () => {
+      await transport.start((message) => {
+        // Reply routing: 'admin' injects through the admin session (the
+        // dispatcher), 'echo' answers an acknowledgement only (the channel's
+        // liveness check while no admin persona exists yet).
+        if (config.dingtalkInboundReply === 'echo') {
+          void transport.send(`【数字管理员】已收到：${message.content}`).catch(() => undefined)
+          return
+        }
+        void inbound.dispatch(message)
+      })
+    }, 'pi-agent: dingtalk channel')
+  }
   const directory = new EmployeeDirectoryService(ctx, {
     store,
     disposeChild: async (employeeId) => {
