@@ -102,7 +102,7 @@ describe('EmployeeAvatarBadge', () => {
   const mount = (source: EmployeeSource, sessionId: SessionId) => render(
     createElement(EmployeeAvatarBadge, {
       sessionId,
-      useEmployees: (select: (rows: readonly EmployeeView[]) => unknown) => select(source.hooks.employees.getSnapshot()),
+      useEmployees: bindSnapshotSelector(source.hooks.employees),
       t,
     } as never),
   )
@@ -134,6 +134,7 @@ describe('EmployeeCreateDialogHost', () => {
     const view = render(createElement(EmployeeCreateDialogHost, {
       useWizard: bindSnapshotSelector(source.hooks.wizard),
       useCreating: bindSnapshotSelector(source.hooks.creating),
+      useEmployees: bindSnapshotSelector(source.hooks.employees),
       create,
       listModels: vi.fn(async () => ({ ok: true as const, value: { models } })),
       pickDirectory: vi.fn(async () => null),
@@ -157,6 +158,7 @@ describe('EmployeeCreateDialogHost', () => {
     const create = vi.fn<Create>(async () => ({ ok: true as const, value: created }))
     const { openSession } = mount(source, create)
 
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(en['create.type.piCoder']) }))
     fireEvent.change(screen.getByPlaceholderText(en['create.field.namePlaceholder']), { target: { value: ' 阿黄 ' } })
     fireEvent.click(screen.getByText('🤖'))
     fireEvent.change(screen.getByPlaceholderText(en['create.field.cwdPlaceholder']), { target: { value: 'D:/repo' } })
@@ -179,6 +181,7 @@ describe('EmployeeCreateDialogHost', () => {
     const create = vi.fn<Create>(async () => ({ ok: true as const, value: created }))
     mount(source, create)
 
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(en['create.type.piCoder']) }))
     fireEvent.change(screen.getByPlaceholderText(en['create.field.cwdPlaceholder']), { target: { value: 'D:/repo' } })
     fireEvent.click(screen.getByRole('button', { name: en['create.submit'] }))
 
@@ -192,6 +195,7 @@ describe('EmployeeCreateDialogHost', () => {
     const create = vi.fn<Create>()
     mount(source, create)
 
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(en['create.type.piCoder']) }))
     fireEvent.click(screen.getByRole('button', { name: en['create.submit'] }))
     expect(create).not.toHaveBeenCalled()
     expect(screen.getByRole('alert').textContent).toBe(en['create.cwdRequired'])
@@ -206,6 +210,7 @@ describe('EmployeeCreateDialogHost', () => {
     }))
     mount(source, create)
 
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(en['create.type.piCoder']) }))
     fireEvent.change(screen.getByPlaceholderText(en['create.field.cwdPlaceholder']), { target: { value: 'D:/gone' } })
     fireEvent.click(screen.getByRole('button', { name: en['create.submit'] }))
 
