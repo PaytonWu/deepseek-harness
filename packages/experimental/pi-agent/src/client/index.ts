@@ -74,7 +74,7 @@ export function apply(ctx: Context): () => Promise<void> {
     scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
       name: 'shell.overlay', id: 'pi-agent-create-dialog', locale: NS,
       inject: () => ({
-        hooks: { wizard: source.hooks.wizard, creating: source.hooks.creating },
+        hooks: { wizard: source.hooks.wizard, creating: source.hooks.creating, employees: source.hooks.employees },
         create,
         listModels: () => scope.remote.employee.piModels(),
         pickDirectory: () => scope.uiWorkspace.pickDirectory(),
