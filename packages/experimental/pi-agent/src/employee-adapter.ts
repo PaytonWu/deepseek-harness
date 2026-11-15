@@ -26,6 +26,14 @@ export interface PiEmployeeAdapterDeps {
   readonly onSettled?: EmployeeSettleSink
 }
 
+/** Module sink the plugin binds; used when deps.onSettled is absent (defensive). */
+let fallbackSink: EmployeeSettleSink | undefined
+
+/** Bind the fallback sink (the plugin calls this in apply()). */
+export function bindEmployeeSettleSink(sink: EmployeeSettleSink | undefined): void {
+  fallbackSink = sink
+}
+
 /** Sink for settled answers; the plugin binds it to the feedback pipeline. */
 export interface EmployeeSettleSink {
   /** One settled turn's final answer for one employee. */
@@ -73,6 +81,7 @@ export class PiEmployeeAdapter extends LlmAdapter {
     }
     const answer = (await child.lastAssistantText())?.slice(0, MAX_EMPLOYEE_ANSWER_CHARS) ?? ''
     this.deps.onSettled?.report(employee.id, answer)
+    if (this.deps.onSettled === undefined) fallbackSink?.report(employee.id, answer)
 
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'text-delta', index: 0, text: answer }

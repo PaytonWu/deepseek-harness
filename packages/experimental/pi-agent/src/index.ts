@@ -21,7 +21,7 @@ import { PiChildManager } from './manager.ts'
 import { EmployeeStore } from './employee-store.ts'
 import type { EmployeeRecord } from './employee-store.ts'
 import { EmployeeDirectoryService } from './employee-directory.ts'
-import { PI_EMPLOYEE_PROVIDER, PiEmployeeAdapter } from './employee-adapter.ts'
+import { PI_EMPLOYEE_PROVIDER, PiEmployeeAdapter, bindEmployeeSettleSink } from './employee-adapter.ts'
 import { AdminFeedbackPipeline } from './admin/pipeline.ts'
 import { DwsTransport } from './admin/dws-transport.ts'
 import { AdminInboundDispatcher } from './admin/inbound.ts'
@@ -191,9 +191,36 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     employeeOf: employeeId => store.get(employeeId),
     ensureChild,
     ...(config.dingtalkGroupId !== undefined
-      ? { onSettled: { report: (employeeId: string, answer: string) => { adapterRelay?.(employeeId, answer) } } }
+      ? { onSettled: { report: (employeeId: string, answer: string) => {
+        ctx.logger.warn('[settle-diag] ' + employeeId + ' len=' + String(answer.length))
+        adapterRelay?.(employeeId, answer)
+      } } }
       : {}),
   }))
+
+  const directory = new EmployeeDirectoryService(ctx, {
+    store,
+    ...config.dingtalkGroupId !== undefined ? { onLifecycle: (message: string) => { void channelLifecycle?.(message) } } : {},
+    disposeChild: async (employeeId) => {
+      const live = manager.live(employeeId)
+      if (live !== undefined) await live.dispose()
+    },
+    isChildLive: employeeId => manager.live(employeeId) !== undefined,
+    ensureChild: async (employee) => {
+      const { child } = await ensureChild(employee)
+      return { child: { sendPrompt: (text: string) => child.sendPrompt(text) } }
+    },
+    listPiModels: async () => {
+      const probe = PiRpcChild.start({ ...spawnOptions, cwd: paths.root })
+      try {
+        await probe.ready()
+        const models = await probe.availableModels()
+        return models.map(model => ({ provider: model.provider, modelId: model.id, name: model.name }))
+      } finally {
+        await probe.dispose().catch(() => undefined)
+      }
+    },
+  }, config.groupTitle ?? '我的数字员工')
   // The DingTalk management channel: feedback relay + inbound instruction
   // dispatch. Inbound instructions from whitelisted senders go through the
   // admin's own pi session; the settled answer goes back out over IM.
@@ -222,12 +249,23 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       adminOnline: true,
     })
     void inbound
-    // The feedback relay: every employee pi child's settled answer feeds the
-    // pipeline — bound coders reach the user's DingTalk through the manager.
+    // The feedback relay: employee pi children report settled answers here;
+    // a reply counts as feedback when the employee was bound at dispatch time
+    // (the tool may have been called with another manager since).
+    const bindings = new Map<string, string | undefined>()
     const relay = (employeeId: string, answer: string): void => {
+      const employee = store.get(employeeId)
+      if (employee === undefined) return
+      ctx.logger.warn('[relay-diag] name=' + employee.name + ' bound=' + String(bindings.get(employee.name)))
+      if (bindings.get(employee.name) === undefined) return
       void pipeline.onEmployeeTurnSettled(employeeId, answer).catch(() => undefined)
     }
     adapterRelay = relay
+    bindEmployeeSettleSink({ report: relay })
+    directory.onBound = (employeeName: string, managerId: string | undefined): void => {
+      if (managerId === undefined) bindings.delete(employeeName)
+      else bindings.set(employeeName, managerId)
+    }
     ctx.effect(() => async () => {
       await transport.start((message) => {
         // Reply routing: 'admin' injects through the admin session (the
@@ -241,29 +279,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       })
     }, 'pi-agent: dingtalk channel')
   }
-  const directory = new EmployeeDirectoryService(ctx, {
-    store,
-    ...config.dingtalkGroupId !== undefined ? { onLifecycle: (message: string) => { void channelLifecycle?.(message) } } : {},
-    disposeChild: async (employeeId) => {
-      const live = manager.live(employeeId)
-      if (live !== undefined) await live.dispose()
-    },
-    isChildLive: employeeId => manager.live(employeeId) !== undefined,
-    ensureChild: async (employee) => {
-      const { child } = await ensureChild(employee)
-      return { child: { sendPrompt: (text: string) => child.sendPrompt(text) } }
-    },
-    listPiModels: async () => {
-      const probe = PiRpcChild.start({ ...spawnOptions, cwd: paths.root })
-      try {
-        await probe.ready()
-        const models = await probe.availableModels()
-        return models.map(model => ({ provider: model.provider, modelId: model.id, name: model.name }))
-      } finally {
-        await probe.dispose().catch(() => undefined)
-      }
-    },
-  }, config.groupTitle ?? '我的数字员工')
+
   const warmup = async (): Promise<void> => { await directory.warmup() }
   void warmup().catch(() => undefined)
   ctx.inject(['commands'], (commandCtx) => {
