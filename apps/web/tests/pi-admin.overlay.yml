@@ -1,0 +1,12 @@
+# Loader overlay for the digital-administrator live validation:
+# the pi-agent row with the DingTalk channel configured (spike group + owner
+# whitelist from .agents/plans/digital-administrator-tdd.md Stage 0).
+- insert:
+    - id: optional-pi-agent
+      name: '@deepseek-ai/dsh-pi-agent'
+      config:
+        provider: deepseek
+        model: deepseek-chat
+        dingtalkGroupId: cidIEd64NRF/Jr+yTuLnk+0SQ==
+        dingtalkAllowedSenderIds:
+          - D77ZLdiS2VYTllxdpMj5Yxc9ZiPq2NZqhLu

@@ -134,6 +134,9 @@ function requireChildId(args: PiAgentArgs): string {
   return args.childId
 }
 
+/** Mutable sink the adapter reports settled answers into; bound by apply(). */
+let adapterRelay: ((employeeId: string, answer: string) => void) | undefined
+
 /** Validate configuration, prepare durable state, and register the `pi_agent` tool. */
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const command = config.command ?? DEFAULT_COMMAND
@@ -179,21 +182,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ensureInFlight.delete(employee.id)
     }
   }
+  const channelTransport = config.dingtalkGroupId !== undefined
+    ? new DwsTransport({ notificationGroupId: config.dingtalkGroupId })
+    : undefined
+  let channelLifecycle: ((message: string) => Promise<void>) | undefined
+
   ctx.llm.registerAdapter([PI_EMPLOYEE_PROVIDER], new PiEmployeeAdapter({
     employeeOf: employeeId => store.get(employeeId),
     ensureChild,
+    ...(config.dingtalkGroupId !== undefined
+      ? { onSettled: { report: (employeeId: string, answer: string) => { adapterRelay?.(employeeId, answer) } } }
+      : {}),
   }))
   // The DingTalk management channel: feedback relay + inbound instruction
   // dispatch. Inbound instructions from whitelisted senders go through the
   // admin's own pi session; the settled answer goes back out over IM.
-  if (config.dingtalkGroupId !== undefined) {
-    const transport = new DwsTransport({ notificationGroupId: config.dingtalkGroupId })
+  if (channelTransport !== undefined) {
+    const transport = channelTransport
     const pipeline = new AdminFeedbackPipeline({
       transport,
       store,
       logger: { warn: (message) => { ctx.logger.warn(message) } },
     })
-    const dispatchers = new Map<string, AdminInboundDispatcher>()
+    channelLifecycle = (message: string) => pipeline.notifyLifecycle(message)
     const inbound = new AdminInboundDispatcher({
       store,
       ensureForAdmin: async (adminId: string) => {
@@ -211,11 +222,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       adminOnline: true,
     })
     void inbound
-    void dispatchers
-    const adapterSettled = (employeeId: string, answer: string): void => {
+    // The feedback relay: every employee pi child's settled answer feeds the
+    // pipeline — bound coders reach the user's DingTalk through the manager.
+    const relay = (employeeId: string, answer: string): void => {
       void pipeline.onEmployeeTurnSettled(employeeId, answer).catch(() => undefined)
     }
-    void adapterSettled
+    adapterRelay = relay
     ctx.effect(() => async () => {
       await transport.start((message) => {
         // Reply routing: 'admin' injects through the admin session (the
@@ -231,6 +243,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   const directory = new EmployeeDirectoryService(ctx, {
     store,
+    ...config.dingtalkGroupId !== undefined ? { onLifecycle: (message: string) => { void channelLifecycle?.(message) } } : {},
     disposeChild: async (employeeId) => {
       const live = manager.live(employeeId)
       if (live !== undefined) await live.dispose()

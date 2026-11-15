@@ -38,6 +38,8 @@ export interface EmployeeDirectoryDeps {
   readonly isChildLive?: (employeeId: string) => boolean
   /** Ensure the employee's pi child (dispatch tool injects through it). */
   readonly ensureChild: (employee: EmployeeRecord) => Promise<{ child: { sendPrompt(text: string): Promise<string> } }>
+  /** Lifecycle notice sink (employee created/destroyed); never throws to the caller. */
+  readonly onLifecycle?: (message: string) => void
 }
 
 /** Employee CRUD and session orchestration over the Typert gateway. */
@@ -83,6 +85,7 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     this.applySessionTitle(handle.agent.session, employee.name)
     if (employee.type === 'admin') await this.exposeAdminTools(employee.id, workspace.path)
     const bound = await this.deps.store.update(employee.id, { sessionId })
+    this.deps.onLifecycle?.(`已创建${employee.type === 'admin' ? '数字管理员' : '数字程序员'}「${employee.name}」`)
     return employeeView(bound)
   }
 
@@ -114,8 +117,10 @@ export class EmployeeDirectoryService extends TypertRemoteService {
   /** Remove one employee; its session and pi files stay untouched. */
   @Remote('delete')
   async delete(request: EmployeeDeleteRequest): Promise<{ deleted: true }> {
+    const employee = this.deps.store.get(request.id)
     await this.deps.disposeChild(request.id)
     await this.deps.store.delete(request.id)
+    if (employee !== undefined) this.deps.onLifecycle?.(`已销毁「${employee.name}」`)
     return { deleted: true }
   }
 
