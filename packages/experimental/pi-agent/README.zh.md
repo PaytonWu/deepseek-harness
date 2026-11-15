@@ -72,6 +72,9 @@ pi RPC 模式 — 子进程侧的线上契约，随所安装的 pi 包提供文�
 
 `/new-employee <名称> --cwd <目录> --description <职责> [--session <文件>]` 创建一个数字员工：一个具名 pi 编码代理，拥有自己的 dsh 会话，位于 **我的数字员工** Workspace 分组。该会话中的消息直通员工的 pi 子代理 —— `pi-employee` LLM adapter 路由把 pi 变成会话的“模型”，历史、搜索与中断全部复用普通会话生命周期。职责描述在全新 pi 会话中作为第一条指令注入；导入的 `--session` 文件则让员工续用既有 pi 记忆。员工记录持久化于 `$DSH_HOME/pi-agent/employees.json`。
 
+### 数字管理员（管理层）
+`admin` 类型（展示名 **数字管理员**）是管理层员工，带 `channel` 维度（当前`dingtalk`；Transport 可替换）。它没有工作目录（固定为分组目录），经配置的通道 与用户钉钉通信：绑定数字程序员的回合结算回答转发到用户的通知群 （`【名字】反馈：…`），生命周期通知同通道送达；白名单入站指令经管理员自己的 pi 会话派发（LLM 工具调用创建/销毁/列表/派活/状态，绑定校验在工具实现内强制）。 通道配置（`dingtalkGroupId`、`dingtalkAllowedSenderIds`、`dingtalkInboundReply`） 在插件 cordis.yml 配置中。
+
 ### 创建向导（客户端面）
 
 本包附带浏览器半边（`/client` 导出，`dsh.client` platform 为 `web`）。任一 `sidebar.workspaces.group.create.item` 注册项存在时，Workspace 分组头的 ＋ 会展开新建菜单；本包注册 **数字程序员** 行，在 `shell.overlay` 中弹出五字段对话框（名字、emoji 头像、带 Host 选盘的工作目录、来自 `employee/piModels` 的 pi 模型、思考强度）。创建即调 `employee/create`，刷新共享员工投影，并打开新员工的会话。绑定员工的会话在 `sidebar.session.row.leading` 显示该员工的 emoji。

@@ -86,6 +86,7 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     if (employee.type === 'admin') await this.exposeAdminTools(employee.id, workspace.path)
     const bound = await this.deps.store.update(employee.id, { sessionId })
     this.deps.onLifecycle?.(`已创建${employee.type === 'admin' ? '数字管理员' : '数字程序员'}「${employee.name}」`)
+    this.onBound?.(employee.name, employee.managerId)
     return employeeView(bound)
   }
 
@@ -120,12 +121,20 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     const employee = this.deps.store.get(request.id)
     await this.deps.disposeChild(request.id)
     await this.deps.store.delete(request.id)
-    if (employee !== undefined) this.deps.onLifecycle?.(`已销毁「${employee.name}」`)
+    if (employee !== undefined) {
+      this.deps.onLifecycle?.(`已销毁「${employee.name}」`)
+      this.onBound?.(employee.name, undefined)
+    }
     return { deleted: true }
   }
 
   /** One management tool server per admin, keyed by admin id. */
   private readonly adminServers = new Map<string, ManagementToolServer>()
+
+  /** Binding notice sink assigned by the plugin after construction (create/bound-delete). */
+  onBound?: (employeeName: string, managerId: string | undefined) => void
+
+  /** Every employee in creation order. */
 
   /**
    * Expose the management tools to this admin's pi child: start the MCP tool
@@ -199,6 +208,10 @@ export class EmployeeDirectoryService extends TypertRemoteService {
         const employee = this.deps.store.list().find(row => row.name === employeeName || row.id === employeeName)
         if (employee === undefined) return { dispatched: false, message: `没有名为「${employeeName}」的数字程序员` }
         if (employee.managerId !== adminId) return { dispatched: false, message: `「${employee.name}」不在本管理员的绑定名单中` }
+        // Register the binding before injecting: the employee's settled answer
+        // relays to the user's DingTalk only while bound (the tool may run
+        // before any web view opened the coder's session).
+        this.onBound?.(employee.name, employee.managerId)
         const { child } = await this.deps.ensureChild(employee)
         await child.sendPrompt(message)
         return { dispatched: true, message: `已派发给「${employee.name}」` }
