@@ -22,6 +22,14 @@ export interface PiEmployeeAdapterDeps {
   readonly employeeOf: (employeeId: string) => EmployeeRecord | undefined
   /** Ensure the employee's pi child is live, creating or cold-resuming it. */
   readonly ensureChild: (employee: EmployeeRecord) => Promise<{ child: EmployeeChildHandle; createdFresh: boolean }>
+  /** Settle sink the adapter reports into; omission keeps the answer local. */
+  readonly onSettled?: EmployeeSettleSink
+}
+
+/** Sink for settled answers; the plugin binds it to the feedback pipeline. */
+export interface EmployeeSettleSink {
+  /** One settled turn's final answer for one employee. */
+  report(employeeId: string, answer: string): void
 }
 
 /** Live child surface the adapter consumes. */
@@ -64,6 +72,7 @@ export class PiEmployeeAdapter extends LlmAdapter {
       options.signal?.removeEventListener('abort', onAbort)
     }
     const answer = (await child.lastAssistantText())?.slice(0, MAX_EMPLOYEE_ANSWER_CHARS) ?? ''
+    this.deps.onSettled?.report(employee.id, answer)
 
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'text-delta', index: 0, text: answer }
