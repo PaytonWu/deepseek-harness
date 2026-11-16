@@ -13,7 +13,7 @@ export const AVATAR_CHOICES = ['🧑‍💻', '🤖', '👩‍💻', '🧙', '�
 export const THINKING_CHOICES = ['pi', 'off', 'low', 'medium', 'high'] as const
 
 export const en = {
-  'create.menuItem': 'Digital coder',
+  'create.menuItem': 'New employee',
   'create.title': 'New digital coder',
   'create.title.pick': 'New employee',
   'create.title.admin': 'New digital administrator',
@@ -44,6 +44,7 @@ export const en = {
   'create.error': 'Could not create the digital coder.',
   'create.cwdRequired': 'Enter a working directory.',
   'hover.cwd': 'Coding directory',
+  'hover.team': 'Team: {count} coder(s)',
   'menu.dismiss': 'Dismiss employee',
   'dismiss.title': 'Dismiss "{name}"?',
   'dismiss.body': 'This stops the employee agent, deletes the employee record, and archives the session.',
@@ -53,7 +54,7 @@ export const en = {
 } as const
 
 const zh = {
-  'create.menuItem': '数字程序员',
+  'create.menuItem': '新建数字员工',
   'create.title': '新建数字程序员',
   'create.title.pick': '新建数字员工',
   'create.title.admin': '新建数字管理员',
@@ -84,6 +85,7 @@ const zh = {
   'create.error': '无法创建数字程序员。',
   'create.cwdRequired': '请输入工作目录。',
   'hover.cwd': '编码目录',
+  'hover.team': '团队：{count} 名数字程序员',
   'menu.dismiss': '解雇数字员工',
   'dismiss.title': '解雇「{name}」？',
   'dismiss.body': '将停止其代理进程、删除员工记录，并归档其会话。',
@@ -124,6 +126,7 @@ const ja = {
   'create.error': 'デジタルプログラマーを作成できませんでした。',
   'create.cwdRequired': '作業ディレクトリを入力してください。',
   'hover.cwd': 'コーディングディレクトリ',
+  'hover.team': 'チーム：{count} 名',
   'menu.dismiss': 'デジタル従業員を解雇',
   'dismiss.title': '「{name}」を解雇しますか？',
   'dismiss.body': '従業員のエージェントを停止し、記録を削除して、セッションをアーカイブします。',
@@ -164,6 +167,7 @@ const es = {
   'create.error': 'No se pudo crear el programador digital.',
   'create.cwdRequired': 'Introduce un directorio de trabajo.',
   'hover.cwd': 'Directorio de código',
+  'hover.team': 'Equipo: {count}',
   'menu.dismiss': 'Despedir empleado',
   'dismiss.title': '¿Despedir a «{name}»?',
   'dismiss.body': 'Esto detiene su agente, elimina el registro del empleado y archiva la sesión.',
@@ -204,6 +208,7 @@ const fr = {
   'create.error': 'Impossible de créer le programmeur numérique.',
   'create.cwdRequired': 'Saisissez un répertoire de travail.',
   'hover.cwd': 'Répertoire de code',
+  'hover.team': 'Équipe : {count}',
   'menu.dismiss': 'Renvoyer l’employé',
   'dismiss.title': 'Renvoyer « {name} » ?',
   'dismiss.body': 'Cela arrête son agent, supprime la fiche de l’employé et archive sa session.',
@@ -244,6 +249,7 @@ const de = {
   'create.error': 'Der digitale Programmierer konnte nicht erstellt werden.',
   'create.cwdRequired': 'Gib ein Arbeitsverzeichnis ein.',
   'hover.cwd': 'Code-Verzeichnis',
+  'hover.team': 'Team: {count}',
   'menu.dismiss': 'Mitarbeiter entlassen',
   'dismiss.title': '„{name}“ entlassen?',
   'dismiss.body': 'Dies stoppt den Agenten, löscht den Mitarbeiter-Eintrag und archiviert die Sitzung.',
@@ -284,6 +290,7 @@ const ru = {
   'create.error': 'Не удалось создать цифрового программиста.',
   'create.cwdRequired': 'Введите рабочий каталог.',
   'hover.cwd': 'Каталог кода',
+  'hover.team': 'Команда: {count}',
   'menu.dismiss': 'Уволить сотрудника',
   'dismiss.title': 'Уволить «{name}»?',
   'dismiss.body': 'Это остановит агента, удалит запись сотрудника и архивирует сессию.',
@@ -324,6 +331,7 @@ const pt = {
   'create.error': 'Não foi possível criar o programador digital.',
   'create.cwdRequired': 'Informe um diretório de trabalho.',
   'hover.cwd': 'Diretório de código',
+  'hover.team': 'Equipe: {count}',
   'menu.dismiss': 'Demitir funcionário',
   'dismiss.title': 'Demitir «{name}»?',
   'dismiss.body': 'Isso interrompe o agente, exclui o registro do funcionário e arquiva a sessão.',

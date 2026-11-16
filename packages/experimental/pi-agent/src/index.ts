@@ -191,10 +191,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     employeeOf: employeeId => store.get(employeeId),
     ensureChild,
     ...(config.dingtalkGroupId !== undefined
-      ? { onSettled: { report: (employeeId: string, answer: string) => {
-        ctx.logger.warn('[settle-diag] ' + employeeId + ' len=' + String(answer.length))
-        adapterRelay?.(employeeId, answer)
-      } } }
+      ? { onSettled: { report: (employeeId: string, answer: string) => { adapterRelay?.(employeeId, answer) } } }
       : {}),
   }))
 
@@ -254,17 +251,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     // (the tool may have been called with another manager since).
     const bindings = new Map<string, string | undefined>()
     const relay = (employeeId: string, answer: string): void => {
-      const employee = store.get(employeeId)
-      if (employee === undefined) return
-      ctx.logger.warn('[relay-diag] name=' + employee.name + ' bound=' + String(bindings.get(employee.name)))
-      if (bindings.get(employee.name) === undefined) return
+      if (bindings.get(employeeId) === undefined) return
       void pipeline.onEmployeeTurnSettled(employeeId, answer).catch(() => undefined)
     }
     adapterRelay = relay
     bindEmployeeSettleSink({ report: relay })
-    directory.onBound = (employeeName: string, managerId: string | undefined): void => {
-      if (managerId === undefined) bindings.delete(employeeName)
-      else bindings.set(employeeName, managerId)
+    directory.onBound = (employeeId: string, managerId: string | undefined): void => {
+      if (managerId === undefined) bindings.delete(employeeId)
+      else bindings.set(employeeId, managerId)
     }
     ctx.effect(() => async () => {
       await transport.start((message) => {
