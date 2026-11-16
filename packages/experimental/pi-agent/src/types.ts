@@ -53,8 +53,8 @@ export interface EmployeeUpdateRequest {
   readonly name?: string
   readonly description?: string
   readonly cwd?: string
-  /** Rebind: point the employee at this admin; omitting the key unbinds. */
-  readonly managerId?: string | undefined
+  /** Rebind: point the employee at this admin; `null` unbinds; omitting keeps it. */
+  readonly managerId?: string | null
 }
 
 /** One employee deletion request. */

@@ -89,7 +89,7 @@ function EmployeeBindDialogForm({ target, useEmployees, update, close, t }: Empl
   const toggle = (coder: EmployeeView): void => {
     const bind = coder.managerId !== target.adminId
     setBusyId(coder.id)
-    update({ id: coder.id, managerId: bind ? target.adminId : undefined } ).then((result) => {
+    update({ id: coder.id, managerId: bind ? target.adminId : null }).then((result) => {
       setBusyId(null)
       if (!result.ok) setError(result.error.message)
     }).catch((reason: unknown) => {

@@ -129,11 +129,17 @@ export function apply(ctx: Context): () => Promise<void> {
         }
         return actions
       } }), 'pi-agent: dismiss menu')
+    /** Apply one employee patch, then re-read the directory so dialogs see the result. */
+    const update = async (request: EmployeeUpdateRequest) => {
+      const result = await scope.remote.employee.update(request)
+      if (result.ok) await refresh()
+      return result
+    }
     scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
       name: 'shell.overlay', id: 'pi-agent-edit-dialog', locale: NS,
       inject: () => ({
         hooks: { editing: source.hooks.pendingEdit, employees: source.hooks.employees },
-        update: (request: EmployeeUpdateRequest) => scope.remote.employee.update(request),
+        update,
         close: () => { source.clearEdit() },
       }),
     }, EmployeeEditDialogHost)), 'pi-agent: edit dialog')
@@ -141,7 +147,7 @@ export function apply(ctx: Context): () => Promise<void> {
       name: 'shell.overlay', id: 'pi-agent-bind-dialog', locale: NS,
       inject: () => ({
         hooks: { binding: source.hooks.pendingBind, employees: source.hooks.employees },
-        update: (request: EmployeeUpdateRequest) => scope.remote.employee.update(request),
+        update,
         close: () => { source.clearBind() },
       }),
     }, EmployeeBindDialogHost)), 'pi-agent: bind dialog')
