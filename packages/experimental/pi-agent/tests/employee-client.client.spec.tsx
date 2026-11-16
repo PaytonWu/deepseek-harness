@@ -72,7 +72,7 @@ describe('client plugin assembly', () => {
     await waitFor(() => {
       expect(ctx.slots.entries('sidebar.workspaces.group.create.item').map(entry => entry.options.id)).toEqual(['pi-coder'])
       expect(ctx.slots.entries('shell.overlay').map(entry => entry.options.id))
-        .toEqual(['pi-agent-create-dialog', 'pi-agent-dismiss-dialog'])
+        .toEqual(['pi-agent-create-dialog', 'pi-agent-edit-dialog', 'pi-agent-dismiss-dialog'])
       expect(ctx.slots.entries('sidebar.session.row.leading').map(entry => entry.options.id)).toEqual(['pi-employee-avatar'])
     })
     await waitFor(() => { expect(list).toHaveBeenCalledOnce() })

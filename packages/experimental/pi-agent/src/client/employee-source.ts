@@ -27,6 +27,8 @@ export type EmployeeSourceHooks = {
   readonly wizard: ObservableSnapshot<boolean>
   /** The dismissal awaiting confirmation, or null. */
   readonly pendingDismiss: ObservableSnapshot<DismissRequest | null>
+  /** The employee under edit, or null. */
+  readonly pendingEdit: ObservableSnapshot<{ employeeId: string } | null>
   /** True from the moment a creation request is accepted until it settles. */
   readonly creating: ObservableSnapshot<boolean>
 }
@@ -43,6 +45,10 @@ export interface EmployeeSource {
   requestDismiss(request: DismissRequest): void
   /** Clear the dismissal confirmation. */
   clearDismiss(): void
+  /** Raise the edit dialog for one employee. */
+  requestEdit(employeeId: string): void
+  /** Clear the edit request. */
+  clearEdit(): void
   /** Raise or clear the creation flag. */
   setCreating(next: boolean): void
 }
@@ -53,12 +59,15 @@ export function createEmployeeSource(): EmployeeSource {
   const wizard = createSnapshotStore(false)
   const creating = createSnapshotStore(false)
   const pendingDismiss = createSnapshotStore<DismissRequest | null>(null)
+  const pendingEdit = createSnapshotStore<{ employeeId: string } | null>(null)
   return {
-    hooks: { employees, wizard, creating, pendingDismiss },
+    hooks: { employees, wizard, creating, pendingDismiss, pendingEdit },
     adopt: (rows) => { employees.set(rows) },
     setWizard: (up) => { wizard.set(up) },
     requestDismiss: (request) => { pendingDismiss.set(request) },
     clearDismiss: () => { pendingDismiss.set(null) },
+    requestEdit: (employeeId: string) => { pendingEdit.set({ employeeId }) },
+    clearEdit: () => { pendingEdit.set(null) },
     setCreating: (next) => { creating.set(next) },
   }
 }
