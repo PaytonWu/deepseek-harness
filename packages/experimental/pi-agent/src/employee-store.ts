@@ -84,7 +84,10 @@ export interface EmployeeCreateInput {
 }
 
 /** Patchable fields of one employee record. */
-export type EmployeePatch = Partial<Pick<EmployeeRecord, 'name' | 'description' | 'cwd' | 'piSessionFile' | 'sessionId' | 'managerId'>>
+export type EmployeePatch = Partial<Pick<EmployeeRecord, 'name' | 'description' | 'cwd' | 'piSessionFile' | 'sessionId' | 'managerId'>> & {
+  /** Set to drop the manager binding; wins over a `managerId` in the same patch. */
+  readonly clearManagerId?: true
+}
 
 /** Load and persist the employee directory; malformed files fail loudly. */
 export class EmployeeStore {
@@ -214,7 +217,8 @@ export class EmployeeStore {
     if (patch.piSessionFile !== undefined && !existsSync(patch.piSessionFile)) {
       throw new Error(`pi-agent: imported pi session file does not exist: ${patch.piSessionFile}`)
     }
-    const next: EmployeeRecord = { ...current, ...patch }
+    const { clearManagerId, ...fields } = patch
+    const next: EmployeeRecord = { ...current, ...fields, ...clearManagerId === true ? { managerId: undefined } : {} } as EmployeeRecord
     this.records.set(id, next)
     await this.save()
     return next
