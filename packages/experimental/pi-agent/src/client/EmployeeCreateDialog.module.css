@@ -118,3 +118,22 @@
 .typeCardLabel {
   font-weight: 500;
 }
+
+/* Team management roster inside the bind dialog. */
+.team {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.teamRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.teamName {
+  font-size: 13px;
+}
