@@ -127,13 +127,12 @@ export function apply(ctx: Context): () => Promise<void> {
             id: 'bind', label: scope.locale.bind(NS)('menu.bindCoder'), icon: { key: 'pi-agent.bind' },
             run: () => { source.requestBind(employeeId) },
           })
-        } else {
-          actions.push({
-            id: 'dismiss', label: scope.locale.bind(NS)('menu.dismiss'), icon: { key: 'pi-agent.dismiss' },
-            danger: true, separatorBefore: true,
-            run: () => { source.requestDismiss({ employeeId: SessionId(employeeId), sessionId: SessionId(sessionId), name }) },
-          })
         }
+        actions.push({
+          id: 'dismiss', label: scope.locale.bind(NS)('menu.dismiss'), icon: { key: 'pi-agent.dismiss' },
+          danger: true, separatorBefore: true,
+          run: () => { source.requestDismiss({ employeeId: SessionId(employeeId), sessionId: SessionId(sessionId), name }) },
+        })
         return actions
       } }), 'pi-agent: dismiss menu')
     /** Apply one employee patch, then re-read the directory so dialogs see the result. */
