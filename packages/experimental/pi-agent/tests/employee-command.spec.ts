@@ -23,6 +23,11 @@ describe('parseNewEmployeeInput (T4.2 command form)', () => {
     expect(parsed).toEqual({ name: '数字 程序员', cwd: 'C:/work', description: 'codes', piSessionFile: 'C:/prior.jsonl' })
   })
 
+  it('parses the --manager option through to the create input', () => {
+    const parsed = parseNewEmployeeInput('小张 --cwd D:/work --description 写码 --manager 总管')
+    expect(parsed).toMatchObject({ name: '小张', cwd: 'D:/work', managerId: '总管' })
+  })
+
   it('rejects a missing name, missing cwd, and missing description with usage errors', () => {
     expect(parseNewEmployeeInput('')).toMatchObject({ error: expect.stringMatching(/usage/) })
     expect(parseNewEmployeeInput('n --desc d')).toMatchObject({ error: expect.stringMatching(/--cwd/) })

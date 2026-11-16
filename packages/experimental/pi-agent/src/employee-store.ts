@@ -38,7 +38,7 @@ export interface EmployeePiModel {
 
 /** One durable digital-employee record. */
 export interface EmployeeRecord {
-  /** Employee id, also the adapter route suffix. */
+  /** Employee id: the stable key (8 hex chars), also the adapter route suffix. Renaming never changes it. */
   readonly id: string
   /** Employee type; selects the preset template. */
   readonly type: EmployeeTypeId
@@ -52,7 +52,7 @@ export interface EmployeeRecord {
   cwd: string
   /** IM channel; admins only (a first-line employee is never channeled). */
   channel?: EmployeeChannel
-  /** The admin managing this employee; first-line employees only. */
+  /** The admin managing this employee (by the admin's stable id); first-line employees only. */
   managerId?: string
   /** Pi model override for this employee's children. */
   piModel?: EmployeePiModel

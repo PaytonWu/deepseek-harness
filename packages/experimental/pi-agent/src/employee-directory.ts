@@ -86,7 +86,7 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     if (employee.type === 'admin') await this.exposeAdminTools(employee.id, workspace.path)
     const bound = await this.deps.store.update(employee.id, { sessionId })
     this.deps.onLifecycle?.(`已创建${employee.type === 'admin' ? '数字管理员' : '数字程序员'}「${employee.name}」`)
-    this.onBound?.(employee.name, employee.managerId)
+    this.onBound?.(employee.id, employee.managerId)
     return employeeView(bound)
   }
 
@@ -123,7 +123,7 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     await this.deps.store.delete(request.id)
     if (employee !== undefined) {
       this.deps.onLifecycle?.(`已销毁「${employee.name}」`)
-      this.onBound?.(employee.name, undefined)
+      this.onBound?.(employee.id, undefined)
     }
     return { deleted: true }
   }
@@ -132,7 +132,7 @@ export class EmployeeDirectoryService extends TypertRemoteService {
   private readonly adminServers = new Map<string, ManagementToolServer>()
 
   /** Binding notice sink assigned by the plugin after construction (create/bound-delete). */
-  onBound?: (employeeName: string, managerId: string | undefined) => void
+  onBound?: (employeeId: string, managerId: string | undefined) => void
 
   /** Every employee in creation order. */
 
@@ -193,8 +193,8 @@ export class EmployeeDirectoryService extends TypertRemoteService {
         return { id: view.id, name: view.name }
       },
       destroyEmployee: async (args) => {
-        const employee = this.deps.store.list().find(row => row.name === args.name || row.id === args.name)
-        if (employee === undefined) return { destroyed: false, message: `没有名为「${args.name}」的数字程序员` }
+        const employee = this.deps.store.get(args.name) ?? this.deps.store.list().find(row => row.name === args.name)
+        if (employee === undefined) return { destroyed: false, message: `没有 id 或名为「${args.name}」的数字程序员` }
         if (employee.managerId !== adminId) return { destroyed: false, message: `「${employee.name}」不在本管理员的绑定名单中，无法销毁` }
         await this.delete({ id: employee.id })
         return { destroyed: true, message: `已销毁「${employee.name}」` }
@@ -205,13 +205,13 @@ export class EmployeeDirectoryService extends TypertRemoteService {
           .map(row => ({ name: row.name, running: this.deps.isChildLive?.(row.id) === true })),
       }),
       dispatchTask: async ({ employee: employeeName, message }) => {
-        const employee = this.deps.store.list().find(row => row.name === employeeName || row.id === employeeName)
-        if (employee === undefined) return { dispatched: false, message: `没有名为「${employeeName}」的数字程序员` }
+        const employee = this.deps.store.get(employeeName) ?? this.deps.store.list().find(row => row.name === employeeName)
+        if (employee === undefined) return { dispatched: false, message: `没有 id 或名为「${employeeName}」的数字程序员` }
         if (employee.managerId !== adminId) return { dispatched: false, message: `「${employee.name}」不在本管理员的绑定名单中` }
         // Register the binding before injecting: the employee's settled answer
         // relays to the user's DingTalk only while bound (the tool may run
         // before any web view opened the coder's session).
-        this.onBound?.(employee.name, employee.managerId)
+        this.onBound?.(employee.id, employee.managerId)
         const { child } = await this.deps.ensureChild(employee)
         await child.sendPrompt(message)
         return { dispatched: true, message: `已派发给「${employee.name}」` }

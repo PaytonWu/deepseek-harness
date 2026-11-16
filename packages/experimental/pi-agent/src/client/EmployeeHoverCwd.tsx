@@ -32,11 +32,18 @@ export type EmployeeHoverCwdProps =
  */
 export function EmployeeHoverCwd({ sessionId, useEmployees, t }: EmployeeHoverCwdProps): ReactNode {
   const employee = useEmployees(rows => rows.find(row => row.sessionId === sessionId))
+  const boundCount = useEmployees(rows => rows.filter(row => row.managerId === employee?.id).length)
   if (employee === undefined) return null
   return (
     <div className={css.cwd} data-pi-employee-cwd="">
-      <span className={css.cwdLabel}>{t('hover.cwd')}</span>
-      <span className={css.cwdPath}>{employee.cwd}</span>
+      {employee.type === 'admin'
+        ? <span className={css.cwdLabel}>{t('hover.team', { count: boundCount })}</span>
+        : (
+          <>
+            <span className={css.cwdLabel}>{t('hover.cwd')}</span>
+            <span className={css.cwdPath}>{employee.cwd}</span>
+          </>
+        )}
     </div>
   )
 }

@@ -14,6 +14,7 @@ export interface NewEmployeeInput {
   readonly cwd: string
   readonly description: string
   readonly piSessionFile?: string
+  readonly managerId?: string
 }
 
 /**
@@ -26,7 +27,7 @@ export interface NewEmployeeInput {
 export function parseNewEmployeeInput(raw: string): NewEmployeeInput | { error: string } {
   const tokens = tokenize(raw)
   const first = tokens[0]
-  if (first === undefined || first.value.startsWith('--')) return { error: 'usage: /new-employee <name> [--cwd <dir>] [--description <text>] [--session <file>]' }
+  if (first === undefined || first.value.startsWith('--')) return { error: 'usage: /new-employee <name> [--cwd <dir>] [--description <text>] [--session <file>] [--manager <admin name or id>]' }
   const name = first.value
   const options = new Map<string, string>()
   for (let index = 1; index < tokens.length; index += 1) {
@@ -44,11 +45,13 @@ export function parseNewEmployeeInput(raw: string): NewEmployeeInput | { error: 
   const description = options.get('--description')
   if (description === undefined || description.trim().length === 0) return { error: '--description is required: the employee needs a responsibility description' }
   const session = options.get('--session')
+  const manager = options.get('--manager')
   return {
     name,
     cwd,
     description,
     ...session !== undefined ? { piSessionFile: session } : {},
+    ...manager !== undefined ? { managerId: manager } : {},
   }
 }
 

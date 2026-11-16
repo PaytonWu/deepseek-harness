@@ -107,7 +107,7 @@ export class ManagementToolServer {
     }, async ({ name, cwd }) => this.text(await this.handlers.createEmployee({ name, cwd })))
     server.registerTool('destroy_employee', {
       description: '销毁一个绑定到本管理员的数字员工（自动解绑）。只能销毁绑定关系内的员工。',
-      inputSchema: z.object({ name: z.string().describe('员工名或 id') }),
+      inputSchema: z.object({ name: z.string().describe('员工 id（8位）或名字') }),
     }, async ({ name }) => this.text(await this.handlers.destroyEmployee({ name })))
     server.registerTool('list_employees', {
       description: '列出绑定到本管理员的全部数字程序员及其运行状态。',
@@ -119,7 +119,7 @@ export class ManagementToolServer {
     }, async ({ employee, message }) => this.text(await this.handlers.dispatchTask({ employee, message })))
     server.registerTool('employee_status', {
       description: '查询指定数字程序员的中间状态：运行/空闲、最近反馈、最后活跃时间。',
-      inputSchema: z.object({ employee: z.string().describe('员工名') }),
+      inputSchema: z.object({ employee: z.string().describe('员工 id（8位）或名字') }),
     }, async ({ employee }) => this.text(await this.handlers.employeeStatus({ employee })))
     await server.connect(transport)
   }
