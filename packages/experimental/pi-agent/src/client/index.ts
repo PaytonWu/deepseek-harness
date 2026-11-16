@@ -20,13 +20,14 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 // ctx.contextMenus on the client root.
 import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { EmployeeCreateRequest } from '../types.ts'
+import type { EmployeeCreateRequest, EmployeeUpdateRequest } from '../types.ts'
 import { createEmployeeSource, type DismissRequest } from './employee-source.ts'
 import { CreateEmployeeMenuItem } from './CreateEmployeeMenuItem.tsx'
 import { EmployeeCreateDialogHost } from './EmployeeCreateDialog.tsx'
 import { EmployeeAvatarBadge } from './EmployeeAvatarBadge.tsx'
 import { EmployeeHoverCwd } from './EmployeeHoverCwd.tsx'
 import { EmployeeDismissDialogHost } from './EmployeeDismissDialog.tsx'
+import { EmployeeEditDialogHost } from './EmployeeEditDialog.tsx'
 import { IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { dictionaries, NS, type PiAgentClientKey } from './locales.ts'
 
@@ -109,6 +110,14 @@ export function apply(ctx: Context): () => Promise<void> {
         }]
       },
     }), 'pi-agent: dismiss menu')
+    scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
+      name: 'shell.overlay', id: 'pi-agent-edit-dialog', locale: NS,
+      inject: () => ({
+        hooks: { editing: source.hooks.pendingEdit, employees: source.hooks.employees },
+        update: (request: EmployeeUpdateRequest) => scope.remote.employee.update(request),
+        close: () => { source.clearEdit() },
+      }),
+    }, EmployeeEditDialogHost)), 'pi-agent: edit dialog')
     scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
       name: 'shell.overlay', id: 'pi-agent-dismiss-dialog', locale: NS,
       inject: () => ({
