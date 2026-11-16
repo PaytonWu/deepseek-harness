@@ -104,19 +104,31 @@ export function apply(ctx: Context): () => Promise<void> {
         if (employee === undefined) return []
         const { id: employeeId, sessionId, name } = employee
         if (sessionId === undefined) return []
+        const actions: Array<{
+          id: string
+          label: string
+          icon?: { key: string }
+          danger?: boolean
+          separatorBefore?: boolean
+          run: () => void
+        }> = [{
+          id: 'edit', label: scope.locale.bind(NS)('menu.editEmployee'), icon: { key: 'pi-agent.bind' },
+          run: () => { source.requestEdit(employeeId) },
+        }]
         if (employee.type === 'admin') {
-          return [{
+          actions.push({
             id: 'bind', label: scope.locale.bind(NS)('menu.bindCoder'), icon: { key: 'pi-agent.bind' },
             run: () => { source.requestBind(employeeId) },
-          }]
+          })
+        } else {
+          actions.push({
+            id: 'dismiss', label: scope.locale.bind(NS)('menu.dismiss'), icon: { key: 'pi-agent.dismiss' },
+            danger: true, separatorBefore: true,
+            run: () => { source.requestDismiss({ employeeId: SessionId(employeeId), sessionId: SessionId(sessionId), name }) },
+          })
         }
-        return [{
-          id: 'dismiss', label: scope.locale.bind(NS)('menu.dismiss'), icon: { key: 'pi-agent.dismiss' },
-          danger: true, separatorBefore: true,
-          run: () => { source.requestDismiss({ employeeId, sessionId: SessionId(sessionId), name }) },
-        }]
-      },
-    }), 'pi-agent: dismiss menu')
+        return actions
+      } }), 'pi-agent: dismiss menu')
     scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
       name: 'shell.overlay', id: 'pi-agent-edit-dialog', locale: NS,
       inject: () => ({
