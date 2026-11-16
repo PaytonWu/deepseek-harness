@@ -70,7 +70,10 @@ describe('client plugin assembly', () => {
   }
 
   it('registers the create-menu row, the wizard overlay, and the avatar mark, and reads the directory once', async () => {
-    const { ctx, list, menus } = await mountPlugin([employee({ sessionId: 'session-1' })])
+    const { ctx, list, menus } = await mountPlugin([
+      employee({ sessionId: 'session-1' }),
+      employee({ id: 'admin0001', name: '管理员1', type: 'admin', channel: 'dingtalk', sessionId: 'session-admin' }),
+    ])
     // The contributions mount on the inner fiber once remote.employee unparks.
     await waitFor(() => {
       expect(ctx.slots.entries('sidebar.workspaces.group.create.item').map(entry => entry.options.id)).toEqual(['pi-coder'])

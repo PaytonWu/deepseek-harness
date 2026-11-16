@@ -262,9 +262,11 @@ function toolText(result: { content: unknown }): string {
   return content.map(chunk => chunk.text).join(String.fromCharCode(10))
 }
 
-it('delete refuses a digital administrator (channel infrastructure, not dismissable)', async () => {
+it('delete removes an administrator and unbinds its team', async () => {
   const { service, request } = await setup()
   const admin = await service.create(request({ type: 'admin', channel: 'dingtalk', name: '管理员A' }))
-  await expect(service.delete({ id: admin.id })).rejects.toThrow('数字管理员不可解雇')
-  expect(service.list().some(row => row.id === admin.id)).toBe(true)
+  const coder = await service.create(request({ name: '小张', managerId: admin.id }))
+  await service.delete({ id: admin.id })
+  expect(service.list().some(row => row.id === admin.id)).toBe(false)
+  expect(service.list().find(row => row.id === coder.id)?.managerId).toBeUndefined()
 })
