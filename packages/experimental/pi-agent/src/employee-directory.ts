@@ -109,6 +109,7 @@ export class EmployeeDirectoryService extends TypertRemoteService {
   @Remote('update')
   async update(request: EmployeeUpdateRequest): Promise<EmployeeView> {
     return employeeView(await this.deps.store.update(request.id, {
+      ...request.managerId !== undefined ? { managerId: request.managerId } : {},
       ...request.name !== undefined ? { name: request.name } : {},
       ...request.description !== undefined ? { description: request.description } : {},
       ...request.cwd !== undefined ? { cwd: request.cwd } : {},
