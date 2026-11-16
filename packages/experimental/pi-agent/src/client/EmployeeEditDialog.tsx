@@ -1,16 +1,15 @@
 /**
- * The employee edit dialog: rename one employee and, for a first-line coder,
- * rebind it to another manager (or unbind). Raised by a shell-level store
- * entry; double-clicking an employee's sidebar row opens it with that employee
- * preselected.
+ * The employee edit dialog: rename one employee. Raised by a shell-level
+ * store entry; the employee sidebar row's context menu opens it. Manager
+ * rebinding lives on the admin side (the team-management dialog), not here.
  * @module pi-agent-edit-dialog
  */
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
-import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import clsx from 'clsx'
-import { Button, Input, Menu, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
+import { Button, Input, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: the 'shell.overlay' SlotMap row.
@@ -19,14 +18,14 @@ import type { EmployeeUpdateRequest, EmployeeView } from '../types.ts'
 import { NS } from './locales.ts'
 import css from './EmployeeCreateDialog.module.css'
 
-/** The edit target: the employee under edit plus the directory rows. */
+/** The edit target: the employee under edit. */
 export interface EditTarget {
   readonly employeeId: string
 }
 
 /** Host capabilities the edit dialog needs. */
 export interface EmployeeEditDialogInjected {
-  /** Shared projection store: `editing` mounts the form; `employees` lists the directory. */
+  /** Shared projection store: `editing` mounts the form; `employees` resolves the record. */
   readonly hooks: {
     readonly editing: ObservableSnapshot<EditTarget | null>
     readonly employees: ObservableSnapshot<readonly EmployeeView[]>
@@ -76,34 +75,25 @@ interface EmployeeEditDialogFormProps {
 }
 
 /**
- * The edit form: name input plus, for a coder, a manager dropdown (including
- * an unbind row). Save is the single write.
+ * The edit form: name-only rename; Save is the single write.
  * @param props.target - the employee under edit.
  * @param props.t - locale seat.
  * @returns the dialog.
  */
 function EmployeeEditDialogForm({ target, useEmployees, update, close, t }: EmployeeEditDialogFormProps): ReactNode {
   const employee = useEmployees((rows: readonly EmployeeView[]) => rows.find(row => row.id === target.employeeId))
-  const admins = useEmployees((rows: readonly EmployeeView[]) => rows.filter(row => row.type === 'admin'))
   const [name, setName] = useState(employee?.name ?? '')
-  const [managerId, setManagerId] = useState<string | undefined>(employee?.managerId)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
 
   if (employee === undefined) return null
 
   const save = (): void => {
     const nextName = name.trim()
-    if (nextName === employee.name && managerId === employee.managerId) {
+    if (nextName === employee.name || nextName === '') {
       setError(t('edit.nameUnchanged'))
       return
     }
-    update({
-      id: employee.id,
-      ...(nextName !== employee.name && nextName !== '' ? { name: nextName } : {}),
-      ...(managerId !== employee.managerId ? { managerId } : {}),
-    }).then((result) => {
+    update({ id: employee.id, name: nextName }).then((result) => {
       if (!result.ok) {
         setError(result.error.message)
         return
@@ -111,10 +101,6 @@ function EmployeeEditDialogForm({ target, useEmployees, update, close, t }: Empl
       close()
     }).catch((reason: unknown) => { setError(String(reason)) })
   }
-
-  const managerLabel = managerId === undefined
-    ? t('edit.managerNone')
-    : admins.find(admin => admin.id === managerId)?.name ?? managerId
 
   return (
     <Modal
@@ -139,27 +125,6 @@ function EmployeeEditDialogForm({ target, useEmployees, update, close, t }: Empl
             onChange={(event) => { setName(event.currentTarget.value); setError(null) }}
           />
         </label>
-        {employee.type === 'pi-coder' && (
-          <div className={css.field}>
-            <span className={css.fieldLabel}>{t('edit.field.manager')}</span>
-            <Button ref={triggerRef} variant="outline" onClick={() => { setMenuOpen(true) }}>
-              <span className={css.selectValue}>{managerLabel}</span>
-            </Button>
-            <Menu
-              open={menuOpen}
-              anchor={null}
-              anchorRef={triggerRef}
-              align="start"
-              items={[
-                { id: '__none__', label: t('edit.managerNone') },
-                ...admins.map(admin => ({ id: admin.id, label: admin.name })),
-              ]}
-              selectedId={managerId ?? '__none__'}
-              onSelect={(id) => { setManagerId(id === '__none__' ? undefined : id); setMenuOpen(false) }}
-              onClose={() => { setMenuOpen(false) }}
-            />
-          </div>
-        )}
         {error !== null && <p className={css.error} role="alert">{error}</p>}
       </div>
     </Modal>
