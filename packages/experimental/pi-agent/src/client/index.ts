@@ -40,7 +40,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required services: the Remote service, the locale service, and the slot registry. */
-export const inject = ['contextMenus', 'locale', 'remote', 'slots']
+export const inject = ['contextMenus', 'locale', 'managedSessions', 'remote', 'slots']
 
 /**
  * Mount this package's generated Remote namespace, then register the shared
@@ -50,13 +50,20 @@ export const inject = ['contextMenus', 'locale', 'remote', 'slots']
  */
 export function apply(ctx: Context): () => Promise<void> {
   const transport = ctx.plugin(async (owner) => { await owner.remote.$mount(piRemote) })
-  const ui = ctx.inject(['contextMenus', 'locale', 'remote.employee', 'slots', 'uiWorkspace'], (scope) => {
+  const ui = ctx.inject(['contextMenus', 'locale', 'managedSessions', 'remote.employee', 'slots', 'uiWorkspace'], (scope) => {
     scope.effect(() => scope.locale.register(NS, dictionaries), 'pi-agent: dictionaries')
     const source = createEmployeeSource()
-    /** Read the directory back; a settled read replaces the projection. */
+    const markedSessions = new Set<string>()
+    /** Read the directory back; a settled read replaces the projection and re-marks managed sessions. */
     const refresh = async (): Promise<void> => {
       const result = await scope.remote.employee.list()
-      if (result.ok) source.adopt(result.value)
+      if (!result.ok) return
+      source.adopt(result.value)
+      for (const employee of result.value) {
+        if (employee.sessionId === undefined || markedSessions.has(employee.sessionId)) continue
+        markedSessions.add(employee.sessionId)
+        scope.managedSessions.mark(SessionId(employee.sessionId))
+      }
     }
     void refresh().catch(() => undefined)
     const create = async (request: EmployeeCreateRequest) => {

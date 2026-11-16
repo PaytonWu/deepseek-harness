@@ -21,6 +21,10 @@ function bench() {
     items: [], pinnedSessionIds: [], archivedSessionIds: [], state: 'idle', phase: 'ready', error: null,
   })
   ctx.provide('workspaces', { list } as never)
+  const managed = createSnapshotStore<ReadonlySet<SessionId>>(new Set())
+  ctx.provide('managedSessions', {
+    mark: vi.fn(), unmark: vi.fn(), list: managed,
+  } as never)
   const permissions = new Map<string, ReturnType<typeof createSnapshotStore<boolean>>>()
   const access = (action: string) => {
     let source = permissions.get(action)
@@ -33,7 +37,7 @@ function bench() {
   const fiber = ctx.plugin({ apply: (plugin: Context) => { registerSessionMenus(plugin, actions) } })
   const target = { kind: 'session' as const, value: { sessionId: SessionId('background'), displayTitle: 'Background' } }
   const open = () => registry.resolve(target)
-  return { ctx, fiber, registry, locale, list, access, actions, target, open }
+  return { ctx, fiber, registry, locale, list, access, actions, target, open, managed }
 }
 
 it('preserves built-in order, groups, icons, command identities, and captured action targets', async () => {
@@ -94,4 +98,12 @@ it('reacts to permission and locale updates, prevents withdrawn actions, and dis
   expect(b.actions.copySessionId).not.toHaveBeenCalled()
   expect(menu.source.getSnapshot()).toEqual([])
   menu.dispose()
+})
+
+it('hides every built-in action for a managed session', async () => {
+  const b = bench()
+  await b.fiber.await()
+  b.managed.set(new Set([b.target.value.sessionId]))
+  const views = b.open().source.getSnapshot()
+  expect(views.map(({ id }) => id)).toEqual([])
 })

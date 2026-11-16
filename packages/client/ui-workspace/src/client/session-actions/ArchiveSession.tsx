@@ -23,11 +23,12 @@ import browserCss from '../rows/WorkspaceBrowser.module.css'
  * @returns the button, or nothing when the caller may not toggle this Session's archival.
  */
 export function ArchiveSessionRowButton({
-  sessionId, useArchived, useSessionAccess, archiveSession, unarchiveSession, t,
+  sessionId, useArchived, useManaged, useSessionAccess, archiveSession, unarchiveSession, t,
 }: SessionRowActionProps<ArchiveSessionInjected>) {
   const archived = useArchived(set => set.has(sessionId))
+  const managed = useManaged(set => set.has(sessionId))
   const allowed = useSessionAccess(sessionId, archived ? 'workspace/unarchiveSession' : 'workspace/archiveSession')
-  if (!allowed) return null
+  if (managed || !allowed) return null
   return (
     <Tooltip label={t(archived ? 'actions.unarchive' : 'actions.archive')} side="bottom" align="end" delayMs={500} portal>
       <button
