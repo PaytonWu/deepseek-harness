@@ -80,7 +80,8 @@ describe('client plugin assembly', () => {
     const dismissMenu = menus.find(menu => menu.id === 'employee.dismiss')
     expect(dismissMenu).toBeDefined()
     const bound = dismissMenu!.resolve({ sessionId: 'session-1', displayTitle: 'x' }) as readonly { id: string }[]
-    expect(bound.map(action => action.id)).toEqual(['dismiss'])
+    // The coder session carries the edit row; the admin session swaps it for bind.
+    expect(bound.map(action => action.id)).toEqual(['edit', 'dismiss'])
     const stranger = dismissMenu!.resolve({ sessionId: 'session-other', displayTitle: 'x' })
     expect(stranger).toEqual([])
   })
