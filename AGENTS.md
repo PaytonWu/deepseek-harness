@@ -123,7 +123,7 @@ Before pushing, follow [dsh-pre-push-checks](.agents/skills/dsh-pre-push-checks/
 
 ## Product feature workflow
 
-Product feature work follows **OKR → spec → TDD plan → cross-validation → execution**: write the OKR (`.agents/okr/`), then the spec (`.agents/specs/`), then the TDD plan (`.agents/plans/`); validate the pair both ways — every requirement maps to tests, every test traces back — then execute test-first. Keep the three documents current; they sit outside the bilingual pairing scope and never replace [Agent Notes](.agents/notes/README.md).
+Unscheduled product work is recorded in [docs/backlog.md](docs/backlog.md). Product feature work follows **OKR → spec → TDD plan → cross-validation → execution**: write the OKR (`.agents/okr/`), then the spec (`.agents/specs/`), then the TDD plan (`.agents/plans/`); validate the pair both ways — every requirement maps to tests, every test traces back — then execute test-first. Keep the three documents current; they sit outside the bilingual pairing scope and never replace [Agent Notes](.agents/notes/README.md).
 
 ## Secrets / .env
 
