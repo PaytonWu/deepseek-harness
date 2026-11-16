@@ -22,7 +22,7 @@ export const en = {
   'create.intro.admin': 'A digital administrator manages digital coders through DingTalk: it relays their feedback to you and takes your instructions over IM.',
   'create.field.type': 'Employee type',
   'create.field.manager': 'Manager',
-  'create.intro': 'A digital coder runs in your pi coding agent with its own session, working directory, and memory.',
+  'create.intro': 'Pick the employee type: a digital coder executes tasks in a pi session; a digital administrator manages coders through DingTalk.',
   'create.field.name': 'Name',
   'create.field.namePlaceholder': 'Digital coder',
   'create.field.avatar': 'Avatar',
