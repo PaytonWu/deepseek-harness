@@ -118,10 +118,15 @@ export class EmployeeDirectoryService extends TypertRemoteService {
     }))
   }
 
-  /** Remove one employee; its session and pi files stay untouched. */
+  /**
+   * Remove one employee; its session and pi files stay untouched. A 数字管理员
+   * is channel infrastructure, not dismissable help: the refusal names the
+   * rule so a stale client view cannot fire one.
+   */
   @Remote('delete')
   async delete(request: EmployeeDeleteRequest): Promise<{ deleted: true }> {
     const employee = this.deps.store.get(request.id)
+    if (employee?.type === 'admin') throw new Error('pi-agent: 数字管理员不可解雇（它是通道基础设施，不是团队成员）')
     await this.deps.disposeChild(request.id)
     await this.deps.store.delete(request.id)
     if (employee !== undefined) {
