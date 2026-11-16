@@ -41,7 +41,10 @@ export function registerSessionMenus(ctx: Context, actions: Actions): void {
     ctx.remoteAccess.source('session', target.sessionId, action).getSnapshot()
   const archived = (target: ContextMenuTargetMap['session']): boolean =>
     ctx.workspaces.list.getSnapshot().archivedSessionIds.includes(target.sessionId)
+  const managed = (target: ContextMenuTargetMap['session']): boolean =>
+    ctx.managedSessions.list.getSnapshot().has(target.sessionId)
   register('pin', 100, ['workspace/pinSession', 'workspace/unpinSession'], (target) => {
+    if (managed(target)) return []
     const pinned = ctx.workspaces.list.getSnapshot().pinnedSessionIds.includes(target.sessionId)
     if (archived(target) || !allowed(target, pinned ? 'workspace/unpinSession' : 'workspace/pinSession')) return []
     return [{
@@ -49,13 +52,14 @@ export function registerSessionMenus(ctx: Context, actions: Actions): void {
       run: () => { (pinned ? actions.unpinSession : actions.pinSession)(target.sessionId) },
     }]
   })
-  register('rename', 200, ['session/rename'], target => allowed(target, 'session/rename') ? [{
+  register('rename', 200, ['session/rename'], target => !managed(target) && allowed(target, 'session/rename') ? [{
     id: 'rename', label: t('rename'), icon: { key: 'workspace.rename' }, commandId: 'session.rename' as ShortcutCommandId,
     run: () => { actions.requestSessionRename(target.sessionId, target.displayTitle) },
   }] : [])
   register('read-state', 250, ['sessionStatus/mark'], (target) => {
     // Archived rows hide reminders and read as read, so they offer no reading mark.
-    if (archived(target) || !allowed(target, 'sessionStatus/mark')) return []
+    // Managed sessions (digital employees) expose no session machinery either.
+    if (managed(target) || archived(target) || !allowed(target, 'sessionStatus/mark')) return []
     const status = ctx.uiSession.sessionStatus
     const unread = status.getSnapshot().get(target.sessionId)?.completionUnread === true
     return [{
@@ -65,15 +69,16 @@ export function registerSessionMenus(ctx: Context, actions: Actions): void {
       run: () => { actions.markSession(target.sessionId, !unread) },
     }]
   }, [ctx.uiSession.sessionStatus, ctx.uiSession.sessionStatus.readingReady])
-  register('fork', 300, ['session/fork'], target => allowed(target, 'session/fork') ? [{
+  register('fork', 300, ['session/fork'], target => !managed(target) && allowed(target, 'session/fork') ? [{
     id: 'fork', label: t('menu.fork'), icon: { key: 'workspace.fork' }, commandId: 'session.fork' as ShortcutCommandId,
     run: () => { actions.forkSession(target.sessionId) },
   }] : [])
-  register('id', 450, [], target => [{
+  register('id', 450, [], target => managed(target) ? [] : [{
     id: 'copy', label: t('menu.sessionId'), icon: { key: 'workspace.copy' }, separatorBefore: true,
     run: () => actions.copySessionId(target.sessionId),
   }])
   register('archive', 600, ['workspace/archiveSession', 'workspace/unarchiveSession'], (target) => {
+    if (managed(target)) return []
     const restoring = archived(target)
     if (!allowed(target, restoring ? 'workspace/unarchiveSession' : 'workspace/archiveSession')) return []
     return [{

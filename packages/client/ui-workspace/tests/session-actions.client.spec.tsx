@@ -103,6 +103,7 @@ describe('pin action', () => {
   const pinShare = (pinned: readonly string[] = [], archived: readonly string[] = []) => ({
     usePinned: hook(idSet(...pinned)),
     useArchived: hook(idSet(...archived)),
+    useManaged: hook(idSet()),
     pinSession: vi.fn(),
     unpinSession: vi.fn(),
   })
@@ -140,7 +141,9 @@ describe('pin action', () => {
 
 describe('archive action', () => {
   const archiveShare = (archived: readonly string[] = []) => ({
-    useArchived: hook(idSet(...archived)), archiveSession: vi.fn(), unarchiveSession: vi.fn(),
+    useArchived: hook(idSet(...archived)),
+    useManaged: hook(idSet()),
+    archiveSession: vi.fn(), unarchiveSession: vi.fn(),
   })
 
   it('offers no archive button without access but checks restore separately', () => {

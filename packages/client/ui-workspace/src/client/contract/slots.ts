@@ -399,6 +399,8 @@ export interface PinSessionInjected {
     pinned: HostObservable<ReadonlySet<SessionId>>
     /** Archived Session ids (pin does not apply to an archived row). */
     archived: HostObservable<ReadonlySet<SessionId>>
+    /** Sessions managed by an owning product object; the button hides for these. */
+    managed: HostObservable<ReadonlySet<SessionId>>
   }
   /** Pin a Session; on success it leads its accounts' saved orders, on failure the notice says so. */
   pinSession: (sessionId: SessionId) => void
@@ -416,6 +418,8 @@ export interface ArchiveSessionInjected {
   hooks: {
     /** Archived Session ids. */
     archived: HostObservable<ReadonlySet<SessionId>>
+    /** Sessions managed by an owning product object; the button hides for these. */
+    managed: HostObservable<ReadonlySet<SessionId>>
   }
   /**
    * Archive a Session into the registry-global set: the row keeps its

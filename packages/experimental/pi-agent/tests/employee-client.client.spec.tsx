@@ -62,6 +62,9 @@ describe('client plugin assembly', () => {
     const menus: { id: string; resolve: (target: { sessionId: string; displayTitle: string }) => unknown[] }[] = []
     ctx.provide('contextMenus', { register: (contribution: { id: string; resolve: (target: { sessionId: string; displayTitle: string }) => unknown[] }) => { menus.push(contribution); return () => undefined } } as never)
     ctx.provide('workspaces', { list: createSnapshotStore({ items: [], archivedSessionIds: [], pinnedSessionIds: [], phase: 'ready' }) } as never)
+    ctx.provide('managedSessions', {
+      mark: vi.fn(), unmark: vi.fn(), list: createSnapshotStore(new Set()),
+    } as never)
     const fiber = await ctx.plugin({ inject: [...clientInject], apply: clientApply })
     return { ctx, fiber, list, menus }
   }

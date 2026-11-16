@@ -6,13 +6,14 @@ import clsx from 'clsx'
 import type { PinSessionInjected, SessionRowActionProps } from '../contract/slots.ts'
 import css from '../rows/Rows.module.css'
 
-type PinState = Pick<SessionRowActionProps<PinSessionInjected>, 'sessionId' | 'usePinned' | 'useArchived' | 'useSessionAccess'>
+type PinState = Pick<SessionRowActionProps<PinSessionInjected>, 'sessionId' | 'usePinned' | 'useArchived' | 'useManaged' | 'useSessionAccess'>
 
 /** The row's pin and archive membership, one Set lookup each, and whether its access allows the toggle. */
-function usePinState({ sessionId, usePinned, useArchived, useSessionAccess }: PinState) {
+function usePinState({ sessionId, usePinned, useArchived, useManaged, useSessionAccess }: PinState) {
   const pinned = usePinned(set => set.has(sessionId))
   return {
     pinned,
+    managed: useManaged(set => set.has(sessionId)),
     archived: useArchived(archived => archived.has(sessionId)),
     allowed: useSessionAccess(sessionId, pinned ? 'workspace/unpinSession' : 'workspace/pinSession'),
   }
@@ -28,8 +29,8 @@ function usePinState({ sessionId, usePinned, useArchived, useSessionAccess }: Pi
  */
 export function PinSessionRowButton(props: SessionRowActionProps<PinSessionInjected>) {
   const { sessionId, pinSession, unpinSession, t } = props
-  const { pinned, archived, allowed } = usePinState(props)
-  if (archived || !allowed) return null
+  const { pinned, managed, archived, allowed } = usePinState(props)
+  if (managed || archived || !allowed) return null
   return (
     <Tooltip label={t(pinned ? 'actions.unpin' : 'actions.pin')} side="bottom" align="end" delayMs={500} portal>
       <button

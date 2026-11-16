@@ -100,6 +100,23 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      */
     'workspace/archive-followup-settled'(sessionId: SessionId): void
+
+}
+
+/** Sessions owned by a product object (for example a digital employee); built-in Session menu actions skip them. */
+export interface ManagedSessions {
+  /** Declare one session as managed; replaces any previous declaration. */
+  readonly mark: (sessionId: SessionId) => void
+  /** Withdraw one declaration. */
+  readonly unmark: (sessionId: SessionId) => void
+  /** Observable set of managed session ids. */
+  readonly list: { readonly getSnapshot: () => ReadonlySet<SessionId> }
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Sessions managed by an owning product object; built-in Session actions hide themselves for these. */
+    managedSessions: ManagedSessions
   }
 }
 
@@ -170,6 +187,20 @@ export function apply(ctx: Context): void {
         : ctx.remoteAccess.source('workspace', workspaceId, action),
     },
   })
+  const managed = new Set<SessionId>()
+  const managedSource = createSnapshotStore<ReadonlySet<SessionId>>(new Set(managed))
+  const managedSessions: ManagedSessions = {
+    mark: (sessionId) => {
+      managed.add(sessionId)
+      managedSource.set(new Set(managed))
+    },
+    unmark: (sessionId) => {
+      managed.delete(sessionId)
+      managedSource.set(new Set(managed))
+    },
+    list: managedSource,
+  }
+  ctx.provide('managedSessions', managedSessions)
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-workspace: dictionaries')
   const shortcutControls = createWorkspaceShortcutControls()
 
@@ -222,7 +253,7 @@ export function apply(ctx: Context): void {
     if (!result.ok) throw new Error(result.error.message)
   }
   const pinInjected = (): PinSessionInjected => ({
-    hooks: { pinned: pinnedSet, archived: archivedSet },
+    hooks: { pinned: pinnedSet, archived: archivedSet, managed: managedSource },
     // Pin failures surface as a notice: nothing else on the surface moves, so
     // a silent failure would read as a dead action.
     pinSession: (sessionId) => {
@@ -248,7 +279,7 @@ export function apply(ctx: Context): void {
     notify({ kind, sessionId, ...message === undefined ? {} : { message: message.text, tone: message.tone } })
   }
   const archiveInjected = (): ArchiveSessionInjected => ({
-    hooks: { archived: archivedSet },
+    hooks: { archived: archivedSet, managed: managedSource },
     // Archive preserves the log and the account position, so a quiet Session
     // needs no confirmation; the notice offers undo and the archived filter.
     // The Host's refusal for running work is the one case that asks first:
