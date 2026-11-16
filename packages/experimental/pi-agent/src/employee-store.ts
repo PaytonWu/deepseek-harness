@@ -104,11 +104,13 @@ export class EmployeeStore {
         || typeof record.description !== 'string' || typeof record.cwd !== 'string') {
         throw new Error(`pi-agent: employee directory ${file} is malformed (an employee record misses required fields)`)
       }
-      // records written before type/avatar carry no field; fill the pi-coder preset
+      // Records written before the type field carry no type; fill the
+      // pi-coder default only for those. Persisted admins keep their type.
+      const migratedType = record.type ?? 'pi-coder'
       store.records.set(record.id, {
         ...record,
-        type: 'pi-coder',
-        avatar: record.avatar ?? EMPLOYEE_TYPES['pi-coder'].emoji,
+        type: migratedType,
+        avatar: record.avatar ?? EMPLOYEE_TYPES[migratedType].emoji,
       } as EmployeeRecord)
     }
     return store
