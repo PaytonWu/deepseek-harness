@@ -89,6 +89,7 @@ async function bench() {
   ctx.provide('contextMenus', { register: menus.register.bind(menus), resolve: menus.resolve.bind(menus), open: vi.fn(), notify } as never)
   ctx.provide('layout', layout)
   ctx.provide('sessions', { list })
+  ctx.provide('managedSessions', { mark: vi.fn(), unmark: vi.fn(), list: createSnapshotStore(new Set()) } as never)
   ctx.provide('shortcuts', { register: (command: ShortcutCommand) => { commands.set(command.id, command); return () => { commands.delete(command.id) } }, catalog: createSnapshotStore([]) })
   ctx.provide('locale', new LocaleRuntime(ctx))
   ctx.provide('remote', remote as never)
