@@ -28,6 +28,7 @@ import { EmployeeAvatarBadge } from './EmployeeAvatarBadge.tsx'
 import { EmployeeHoverCwd } from './EmployeeHoverCwd.tsx'
 import { EmployeeDismissDialogHost } from './EmployeeDismissDialog.tsx'
 import { EmployeeEditDialogHost } from './EmployeeEditDialog.tsx'
+import { EmployeeBindDialogHost } from './EmployeeBindDialog.tsx'
 import { IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { dictionaries, NS, type PiAgentClientKey } from './locales.ts'
 
@@ -103,6 +104,12 @@ export function apply(ctx: Context): () => Promise<void> {
         if (employee === undefined) return []
         const { id: employeeId, sessionId, name } = employee
         if (sessionId === undefined) return []
+        if (employee.type === 'admin') {
+          return [{
+            id: 'bind', label: scope.locale.bind(NS)('menu.bindCoder'), icon: { key: 'pi-agent.bind' },
+            run: () => { source.requestBind(employeeId) },
+          }]
+        }
         return [{
           id: 'dismiss', label: scope.locale.bind(NS)('menu.dismiss'), icon: { key: 'pi-agent.dismiss' },
           danger: true, separatorBefore: true,
@@ -118,6 +125,14 @@ export function apply(ctx: Context): () => Promise<void> {
         close: () => { source.clearEdit() },
       }),
     }, EmployeeEditDialogHost)), 'pi-agent: edit dialog')
+    scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
+      name: 'shell.overlay', id: 'pi-agent-bind-dialog', locale: NS,
+      inject: () => ({
+        hooks: { binding: source.hooks.pendingBind, employees: source.hooks.employees },
+        update: (request: EmployeeUpdateRequest) => scope.remote.employee.update(request),
+        close: () => { source.clearBind() },
+      }),
+    }, EmployeeBindDialogHost)), 'pi-agent: bind dialog')
     scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
       name: 'shell.overlay', id: 'pi-agent-dismiss-dialog', locale: NS,
       inject: () => ({
