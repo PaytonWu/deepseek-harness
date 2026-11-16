@@ -199,14 +199,14 @@ function EmployeeCreateDialog(
         {kind === 'pick' && (
           <>
             <p className={css.intro}>{t('create.intro')}</p>
-            <div className={css.avatars} role="radiogroup" aria-label={t('create.field.type')}>
-              <button type="button" className={css.avatarButton} onClick={() => { setKind('pi-coder'); setAvatar('🧑‍💻') }}>
-                <div>🧑‍💻</div>
-                <div>{t('create.type.piCoder')}</div>
+            <div className={css.typeGrid} role="radiogroup" aria-label={t('create.field.type')}>
+              <button type="button" className={css.typeCard} onClick={() => { setKind('pi-coder'); setAvatar('🧑‍💻') }}>
+                <span className={css.typeCardEmoji} aria-hidden="true">🧑‍💻</span>
+                <span className={css.typeCardLabel}>{t('create.type.piCoder')}</span>
               </button>
-              <button type="button" className={css.avatarButton} onClick={() => { setKind('admin'); setAvatar('🧑‍💼') }}>
-                <div>🧑‍💼</div>
-                <div>{t('create.type.admin')}</div>
+              <button type="button" className={css.typeCard} onClick={() => { setKind('admin'); setAvatar('🧑‍💼') }}>
+                <span className={css.typeCardEmoji} aria-hidden="true">🧑‍💼</span>
+                <span className={css.typeCardLabel}>{t('create.type.admin')}</span>
               </button>
             </div>
           </>
