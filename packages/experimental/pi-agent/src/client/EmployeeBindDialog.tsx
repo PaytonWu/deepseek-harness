@@ -81,6 +81,7 @@ interface EmployeeTeamFormProps {
  */
 function EmployeeBindDialogForm({ target, useEmployees, update, close, t }: EmployeeTeamFormProps): ReactNode {
   const coders = useEmployees((rows: readonly EmployeeView[]) => rows.filter(row => row.type === 'pi-coder'))
+  const allEmployees = useEmployees((rows: readonly EmployeeView[]) => rows)
   const admin = useEmployees((rows: readonly EmployeeView[]) => rows.find(row => row.id === target.adminId))
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -117,13 +118,22 @@ function EmployeeBindDialogForm({ target, useEmployees, update, close, t }: Empl
             <div className={css.team}>
               {coders.map((coder) => {
                 const isMine = coder.managerId === target.adminId
+                const owner = coder.managerId === undefined
+                  ? undefined
+                  : allEmployees.find(row => row.id === coder.managerId)
+                const takenByOther = !isMine && owner !== undefined
                 return (
                   <div key={coder.id} className={css.teamRow}>
-                    <span className={css.teamName}>{coder.name}</span>
+                    <span className={css.teamName}>
+                      {coder.name}
+                      {takenByOther && (
+                        <span className={css.teamOwner}>{t('bind.boundTo', { name: owner.name })}</span>
+                      )}
+                    </span>
                     <Button
                       variant={isMine ? 'outline' : 'primary'}
                       onClick={() => { toggle(coder) }}
-                      disabled={busyId === coder.id}
+                      disabled={busyId === coder.id || takenByOther}
                     >
                       {isMine ? t('bind.unbind') : t('bind.action')}
                     </Button>
