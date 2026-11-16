@@ -25,6 +25,8 @@ function bench(apps: readonly string[] | null = ['finder', 'cursor'], cwd: strin
     [sessionId]: row, [mainId]: { ...row, id: mainId, cwd: '/main', retainedBy: { mainView: 1 } },
   }, phase: 'ready', projectionsBySession: {} })
   ctx.provide('sessions', { list } as never)
+  const managed = createSnapshotStore<ReadonlySet<SessionId>>(new Set())
+  ctx.provide('managedSessions', { mark: vi.fn(), unmark: vi.fn(), list: managed } as never)
   const gate = Promise.withResolvers<Response>()
   const fetcher = vi.fn(() => gate.promise)
   const controller = new OpenInAppController(fetcher)
@@ -34,7 +36,7 @@ function bench(apps: readonly string[] | null = ['finder', 'cursor'], cwd: strin
   const resolve = (kind: 'session' | 'sessionHeader' = 'session') => registry.resolve(kind === 'session'
     ? { kind, value: { sessionId, displayTitle: 'Captured' } }
     : { kind, value: { sessionId } })
-  return { ctx, registry, locale, controller, list, row, sessionId, fetcher, gate, choose, report, failed, fiber, resolve }
+  return { ctx, registry, locale, controller, list, row, sessionId, fetcher, gate, choose, report, failed, fiber, resolve, managed }
 }
 
 it.each([null, [], ['unlabelled']])('omits unavailable catalog %j from both menu targets', async (apps) => {
@@ -121,4 +123,13 @@ it('withdraws both registrations and their observers on unload and reinstalls wi
   await replacement.await()
   expect(b.resolve().source.getSnapshot()).toHaveLength(1)
   expect(b.resolve('sessionHeader').source.getSnapshot()).toHaveLength(1)
+})
+
+it('omits the submenu for a managed session', async () => {
+  const b = bench()
+  await b.fiber.await()
+  b.managed.set(new Set([SessionId('captured')]))
+  for (const kind of ['session', 'sessionHeader'] as const) {
+    expect(b.resolve(kind).source.getSnapshot().map(({ id }) => id)).toEqual([])
+  }
 })

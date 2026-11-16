@@ -21,6 +21,7 @@ export function registerSessionOpenWith(
   report: OpenInAppToastSource['report'],
 ): void {
   const resolve = ({ sessionId }: ContextMenuTargetMap['sessionHeader']): readonly MenuAction[] => {
+    if (ctx.managedSessions.list.getSnapshot().has(sessionId)) return []
     const directory = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
     const applications = (controller.apps.getSnapshot() ?? []).flatMap((id) => {
       const key = APP_LABEL_KEY[id]
