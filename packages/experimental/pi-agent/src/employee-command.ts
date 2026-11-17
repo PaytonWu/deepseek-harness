@@ -5,7 +5,7 @@
  * @module pi-employee-command
  */
 
-import { CommandDefinitionId } from '@deepseek-ai/dsh-commands/brand'
+import { CommandDefinitionId } from '@deepseek-ai/dsh-commands'
 import type { CommandDefinition, CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 
 /** Parsed `/new-employee` input. */

@@ -100,7 +100,7 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      */
     'workspace/archive-followup-settled'(sessionId: SessionId): void
-
+  }
 }
 
 /** Sessions owned by a product object (for example a digital employee); built-in Session menu actions skip them. */

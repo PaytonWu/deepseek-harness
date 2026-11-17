@@ -407,7 +407,7 @@ function ProjectRow({
           <Menu open={createMenuOpen} onClose={closeCreateMenu} anchor={null} anchorRef={plusRef} align="end" autoFocus portal>
             <div onMouseEnter={cancelCreateMenuClose} onMouseLeave={armCreateMenuClose}>
               {!defaultBlankExcluded && (
-                <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); create() }}>
+                <MenuItemButton icon={<IconNewChatOutlineRegular size={14} />} onSelect={() => { closeCreateMenu(); create?.() }}>
                   {t('actions.newSession')}
                 </MenuItemButton>
               )}

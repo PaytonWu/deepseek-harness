@@ -822,8 +822,8 @@ describe('deriveSearchResults', () => {
   })
 
   it('excludes blank sessions from search regardless of query or content hits', () => {
-    const currentBlank = { ...summary('opaque-current', 5), blank: true }
-    const staleBlank = { ...summary('new session stale', 4), blank: true }
+    const currentBlank = { ...summary('opaque-current', 5), title: '', blank: true }
+    const staleBlank = { ...summary('new session stale', 4), title: '', blank: true }
     const sessions = list(currentBlank, staleBlank)
     // Blank placeholders never match — not their localized-display title, not
     // their id, and not even a backend content hit naming them.

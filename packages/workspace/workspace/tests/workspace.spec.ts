@@ -1584,6 +1584,8 @@ describe('archive follow-up lifecycle', () => {
       expect(storedState(result.pool).archivedSessionIds).toEqual(['cleanup-error'])
       expect(warning).toHaveBeenCalled()
     } finally { await result.ctx.fiber.dispose() }
+  })
+})
 
 describe('workspace default-blank exclusion', () => {
 
