@@ -7,7 +7,8 @@
  * @module pi-admin-dws-transport
  */
 
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn } from 'cross-spawn'
+import type { ChildProcess } from 'node:child_process'
 
 /** One inbound IM instruction from the user's account. */
 export interface InboundDingtalkMessage {
@@ -60,7 +61,7 @@ export class DwsTransport {
       let output = ''
       child.stdout?.on('data', (chunk: Buffer) => { output += chunk.toString('utf8') })
       child.stderr?.on('data', (chunk: Buffer) => { output += chunk.toString('utf8') })
-      child.on('close', (code) => {
+      child.on('close', (code?: number) => {
         if (code === 0) {
           resolve()
           return

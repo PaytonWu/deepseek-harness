@@ -260,8 +260,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       if (managerId === undefined) bindings.delete(employeeId)
       else bindings.set(employeeId, managerId)
     }
-    ctx.effect(() => async () => {
-      await transport.start((message) => {
+    ctx.effect(() => {
+      void transport.start((message) => {
         // Reply routing: 'admin' injects through the admin session (the
         // dispatcher), 'echo' answers an acknowledgement only (the channel's
         // liveness check while no admin persona exists yet).
@@ -271,6 +271,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         }
         void inbound.dispatch(message)
       })
+      return () => { void transport.stop() }
     }, 'pi-agent: dingtalk channel')
   }
 
