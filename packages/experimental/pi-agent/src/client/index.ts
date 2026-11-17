@@ -29,6 +29,7 @@ import { EmployeeHoverCwd } from './EmployeeHoverCwd.tsx'
 import { EmployeeDismissDialogHost } from './EmployeeDismissDialog.tsx'
 import { EmployeeEditDialogHost } from './EmployeeEditDialog.tsx'
 import { EmployeeBindDialogHost } from './EmployeeBindDialog.tsx'
+import { ChannelSetupDialogHost } from './ChannelSetupDialog.tsx'
 import { IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { dictionaries, NS, type PiAgentClientKey } from './locales.ts'
 
@@ -86,6 +87,10 @@ export function apply(ctx: Context): () => Promise<void> {
         hooks: { wizard: source.hooks.wizard, creating: source.hooks.creating, employees: source.hooks.employees },
         create,
         listModels: () => scope.remote.employee.piModels(),
+        dingtalkPreflight: () => scope.remote.employee.dingtalkPreflight().then((result) => {
+          if (!result.ok) throw new Error(result.error.message)
+          return { ok: true as const, value: result.value }
+        }),
         pickDirectory: () => scope.uiWorkspace.pickDirectory(),
         openSession: (sessionId: SessionId) => { scope.uiWorkspace.openSession(sessionId) },
         close: () => { source.setWizard(false) },
@@ -127,6 +132,10 @@ export function apply(ctx: Context): () => Promise<void> {
             id: 'bind', label: scope.locale.bind(NS)('menu.bindCoder'), icon: { key: 'pi-agent.bind' },
             run: () => { source.requestBind(employeeId) },
           })
+          actions.push({
+            id: 'channel', label: scope.locale.bind(NS)('menu.configureChannel'), icon: { key: 'pi-agent.bind' },
+            run: () => { source.requestChannel(employeeId) },
+          })
         }
         actions.push({
           id: 'dismiss', label: scope.locale.bind(NS)('menu.dismiss'), icon: { key: 'pi-agent.dismiss' },
@@ -157,6 +166,34 @@ export function apply(ctx: Context): () => Promise<void> {
         close: () => { source.clearBind() },
       }),
     }, EmployeeBindDialogHost)), 'pi-agent: bind dialog')
+    scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
+      name: 'shell.overlay', id: 'pi-agent-channel-dialog', locale: NS,
+      inject: () => ({
+        hooks: { pendingChannel: source.hooks.pendingChannel, employees: source.hooks.employees },
+        preflight: () => scope.remote.employee.dingtalkPreflight().then((result) => {
+          if (!result.ok) throw new Error(result.error.message)
+          return result.value
+        }),
+        listGroups: () => scope.remote.employee.dingtalkListGroups().then((result) => {
+          if (!result.ok) throw new Error(result.error.message)
+          return result.value.groups
+        }),
+        getChannel: () => scope.remote.employee.dingtalkGetChannel().then((result) => {
+          if (!result.ok) throw new Error(result.error.message)
+          return result.value
+        }),
+        saveGroup: (groupId: string) => scope.remote.employee.dingtalkSaveGroup({ groupId }).then((result) => {
+          if (!result.ok) throw new Error(result.error.message)
+        }),
+        startCapture: () => scope.remote.employee.dingtalkStartCapture().then((result) => {
+          if (!result.ok) throw new Error(result.error.message)
+        }),
+        cancelCapture: () => scope.remote.employee.dingtalkCancelCapture().then((result) => {
+          if (!result.ok) throw new Error(result.error.message)
+        }),
+        close: () => { source.clearChannel() },
+      }),
+    }, ChannelSetupDialogHost)), 'pi-agent: channel dialog')
     scope.effect(() => scope.slots.inject('shell.overlay', () => scope.slots.register({
       name: 'shell.overlay', id: 'pi-agent-dismiss-dialog', locale: NS,
       inject: () => ({

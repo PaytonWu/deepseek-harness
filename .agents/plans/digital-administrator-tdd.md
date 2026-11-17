@@ -96,6 +96,19 @@
 - T8.1 全 gates：doc-sync / lint / typecheck / coverage / constraints。
 - T8.2 真机 SMOKE（KR5）：创建管理员 → 钉钉收生命周期通知 → IM 派活数字程序员 → 员工执行 → 反馈回钉钉 → IM 指令创建（自动绑定）/销毁（未绑定拒绝）→ web 直聊管理员。
 
+
+## Stage 9 — 通道引导与持久化配置（M11–M14，2026-11-17 增补；spec §6）
+
+- T9.1 ChannelStore：`channel.json` 读写（损坏 fail-loud）、逐字段覆盖 cordis 默认、捕获 pending 状态与捕获结果落盘。
+- T9.2 预检 RPC `dingtalkPreflight`：探测 `dws event status`（ENOENT → missing；非零 → failed+detail；零 → ok）；向导 admin 类型卡片展示横幅并阻断创建。
+- T9.3 群列表 RPC `dingtalkListGroups`：`dws chat +chat-list` 过滤 group，映射 {id, name}；通道对话框下拉 + 刷新。
+- T9.4 通道读写与重启：`dingtalkGetChannel` / `dingtalkSaveChannel`（保存群 id → 持久化 → 以生效配置重建 transport + dispatcher 并重启监听）；`dingtalkGetChannel` 返回 groupId/白名单/捕获状态。
+- T9.5 白名单捕获：`dingtalkStartCapture` / `dingtalkCancelCapture`；通道回调在捕获 pending 时路由到捕获（新发送者去重写入 + IM 回执【前缀），否则派发；对话框轮询展示。
+- T9.6 客户端「配置钉钉通道…」对话框（管理员会话右键）：预检横幅、群下拉、白名单列表与捕获按钮、保存并重启；8 语言字典。
+- T9.7 全量 gates + 真机回归（干净一遍：预检横幅 → 选群 → 捕获 → 保存 → IM 双向）。
+
+矩阵增补：M11→T9.2；M12→T9.3；M13→T9.5；M14→T9.1/T9.4/T9.5。
+
 ## 交叉验证矩阵（spec ↔ plan）
 
 | spec 需求 | 覆盖测试 | Stage |

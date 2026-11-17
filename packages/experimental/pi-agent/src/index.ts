@@ -8,6 +8,8 @@
 
 import type {} from '@deepseek-ai/dsh-working-directory'
 import { resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { ChannelStore } from './channel-store.ts'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -20,7 +22,7 @@ import { PiRpcChild } from './rpc.ts'
 import { PiChildManager } from './manager.ts'
 import { EmployeeStore } from './employee-store.ts'
 import type { EmployeeRecord } from './employee-store.ts'
-import { EmployeeDirectoryService } from './employee-directory.ts'
+import { EmployeeDirectoryService, type EmployeeDirectoryDeps } from './employee-directory.ts'
 import { PI_EMPLOYEE_PROVIDER, PiEmployeeAdapter, bindEmployeeSettleSink } from './employee-adapter.ts'
 import { AdminFeedbackPipeline } from './admin/pipeline.ts'
 import { DwsTransport } from './admin/dws-transport.ts'
@@ -182,12 +184,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ensureInFlight.delete(employee.id)
     }
   }
-  const channelTransport = config.dingtalkGroupId !== undefined
-    ? new DwsTransport({
-      notificationGroupId: config.dingtalkGroupId,
-      ...(config.dingtalkAllowedSenderIds !== undefined ? { allowedSenderOpenDingTalkIds: config.dingtalkAllowedSenderIds } : {}),
-    })
-    : undefined
+  const channelStore = ChannelStore.load(resolve(paths.root, 'channel.json'), {
+    ...(config.dingtalkGroupId !== undefined ? { dingtalkGroupId: config.dingtalkGroupId } : {}),
+    ...(config.dingtalkAllowedSenderIds !== undefined ? { allowedSenderIds: config.dingtalkAllowedSenderIds } : {}),
+  })
   let channelLifecycle: ((message: string) => Promise<void>) | undefined
 
   ctx.llm.registerAdapter([PI_EMPLOYEE_PROVIDER], new PiEmployeeAdapter({
@@ -200,6 +200,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
 
   const directory = new EmployeeDirectoryService(ctx, {
     store,
+    // A lazy facade: the channel block below assigns the real implementation
+    // after construction (the directory is wired before the channel block).
+    ...(config.dingtalkGroupId !== undefined ? { channel: {
+      get: () => channelFacade.get(),
+      saveGroup: (groupId: string) => channelFacade.saveGroup(groupId),
+      preflight: () => channelFacade.preflight(),
+      listGroups: () => channelFacade.listGroups(),
+      startCapture: () => channelFacade.startCapture(),
+      cancelCapture: () => channelFacade.cancelCapture(),
+    } } : {}),
     ...config.dingtalkGroupId !== undefined ? { onLifecycle: (message: string) => { void channelLifecycle?.(message) } } : {},
     disposeChild: async (employeeId) => {
       const live = manager.live(employeeId)
@@ -222,33 +232,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     },
   }, config.groupTitle ?? '我的数字员工')
   // The DingTalk management channel: feedback relay + inbound instruction
-  // dispatch. Inbound instructions from whitelisted senders go through the
-  // admin's own pi session; the settled answer goes back out over IM.
-  if (channelTransport !== undefined) {
-    const transport = channelTransport
+  // dispatch. The controller rebuilds the transport and dispatcher from the
+  // current effective channel configuration so the wizard's saved group and
+  // whitelist take effect without a Host restart.
+  const channelFacade: NonNullable<EmployeeDirectoryDeps['channel']> = {
+    get: () => { throw new Error('pi-agent: channel facade not initialized') },
+    saveGroup: () => Promise.reject(new Error('pi-agent: channel facade not initialized')),
+    preflight: () => Promise.resolve({ ok: false, reason: 'failed', detail: 'not initialized' }),
+    listGroups: () => Promise.resolve([]),
+    startCapture: () => Promise.reject(new Error('pi-agent: channel facade not initialized')),
+    cancelCapture: () => Promise.reject(new Error('pi-agent: channel facade not initialized')),
+  }
+  if (config.dingtalkGroupId !== undefined) {
     const pipeline = new AdminFeedbackPipeline({
-      transport,
       store,
       logger: { warn: (message) => { ctx.logger.warn(message) } },
+      // The active transport is replaced by channel saves; the pipeline reads
+      // through this seat so lifecycle and feedback follow the replacement.
+      get transport() {
+        return activeTransport as DwsTransport
+      },
     })
     channelLifecycle = (message: string) => pipeline.notifyLifecycle(message)
-    const inbound = new AdminInboundDispatcher({
-      store,
-      ensureForAdmin: async (adminId: string) => {
-        const record = store.get(adminId)
-        if (record === undefined) throw new Error(`pi-agent: unknown admin ${adminId}`)
-        const { child } = await ensureChild(record)
-        return {
-          inject: async (text: string) => { await child.sendPrompt(text) },
-          answer: async () => (await child.lastAssistantText()) ?? '',
-        }
-      },
-      transport,
-      whitelist: config.dingtalkAllowedSenderIds ?? [],
-      logger: { warn: (message) => { ctx.logger.warn(message) } },
-      adminOnline: true,
-    })
-    void inbound
+    let activeTransport: DwsTransport | undefined
     // The feedback relay: employee pi children report settled answers here;
     // a reply counts as feedback when the employee was bound at dispatch time
     // (the tool may have been called with another manager since).
@@ -263,8 +269,41 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       if (managerId === undefined) bindings.delete(employeeId)
       else bindings.set(employeeId, managerId)
     }
-    ctx.effect(() => {
+    const spawnListener = (): void => {
+      const effective = channelStore.effective()
+      if (effective.dingtalkGroupId === undefined) return
+      const transport = new DwsTransport({
+        notificationGroupId: effective.dingtalkGroupId,
+        ...(effective.allowedSenderIds !== undefined ? { allowedSenderOpenDingTalkIds: effective.allowedSenderIds } : {}),
+      })
+      const inbound = new AdminInboundDispatcher({
+        store,
+        ensureForAdmin: async (adminId: string) => {
+          const record = store.get(adminId)
+          if (record === undefined) throw new Error(`pi-agent: unknown admin ${adminId}`)
+          const { child } = await ensureChild(record)
+          return {
+            inject: async (text: string) => { await child.sendPrompt(text) },
+            answer: async () => (await child.lastAssistantText()) ?? '',
+          }
+        },
+        transport,
+        whitelist: effective.allowedSenderIds ?? [],
+        logger: { warn: (message) => { ctx.logger.warn(message) } },
+        adminOnline: true,
+      })
       void transport.start((message) => {
+        // Capture routing: while a capture round is pending, the next
+        // whitelisted-external group message admits its sender instead of
+        // dispatching; the reply's 【 prefix keeps it out of the listener.
+        if (channelStore.isCapturePending() && !message.content.startsWith('【')) {
+          const admitted = channelStore.admitSender(message.senderId)
+          const ack = admitted
+            ? `【系统】已把 ${message.senderId.slice(0, 12)}… 加入白名单`
+            : '【系统】该发送者已在白名单中'
+          void transport.send(ack).catch(() => undefined)
+          return
+        }
         // Reply routing: 'admin' injects through the admin session (the
         // dispatcher), 'echo' answers an acknowledgement only (the channel's
         // liveness check while no admin persona exists yet).
@@ -274,8 +313,52 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         }
         void inbound.dispatch(message)
       })
-      return () => { void transport.stop() }
-    }, 'pi-agent: dingtalk channel')
+      activeTransport = transport
+    }
+    spawnListener()
+    const channel = {
+      get: () => ({
+        ...channelStore.effective(),
+        capturePending: channelStore.isCapturePending(),
+        listenerRunning: activeTransport !== undefined,
+      }),
+      saveGroup: (groupId: string): Promise<void> => {
+        channelStore.setGroupId(groupId)
+        void activeTransport?.stop()
+        activeTransport = undefined
+        spawnListener()
+        return Promise.resolve()
+      },
+      preflight: (): Promise<{ ok: boolean; reason?: string; detail?: string }> => {
+        try {
+          execFileSync(config.command === undefined ? 'dws' : config.command, ['event', 'status'], { stdio: 'pipe', timeout: 15_000 })
+          return Promise.resolve({ ok: true })
+        } catch (error: unknown) {
+          const cause = error as NodeJS.ErrnoException & { status?: number }
+          if (cause.code === 'ENOENT') return Promise.resolve({ ok: false, reason: 'missing', detail: 'npm install -g dws && dws auth login' })
+          if (typeof cause.status === 'number' && cause.status !== 0) return Promise.resolve({ ok: false, reason: 'login', detail: 'dws auth login' })
+          return Promise.resolve({ ok: false, reason: 'failed', detail: String(error).slice(0, 200) })
+        }
+      },
+      listGroups: (): Promise<readonly { id: string; name: string }[]> => {
+        const output = execFileSync('dws', ['chat', '+chat-list', '--format', 'json'], { encoding: 'utf8', timeout: 20_000, maxBuffer: 4 * 1024 * 1024 })
+        const parsed = JSON.parse(output) as { chats?: Array<{ chatMode?: string; name?: string; openConversationId?: string }> }
+        const groups = (parsed.chats ?? [])
+          .filter(chat => chat.chatMode === 'group' && chat.openConversationId !== undefined)
+          .map(chat => ({ id: chat.openConversationId as string, name: chat.name ?? chat.openConversationId as string }))
+        return Promise.resolve(groups)
+      },
+      startCapture: (): Promise<void> => {
+        channelStore.startCapture()
+        return Promise.resolve()
+      },
+      cancelCapture: (): Promise<void> => {
+        channelStore.cancelCapture()
+        return Promise.resolve()
+      },
+    }
+    ctx.effect(() => () => { void activeTransport?.stop() }, 'pi-agent: dingtalk channel')
+    Object.assign(channelFacade, channel)
   }
 
   const warmup = async (): Promise<void> => { await directory.warmup() }

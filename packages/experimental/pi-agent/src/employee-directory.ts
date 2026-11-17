@@ -22,9 +22,34 @@ import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type { Workspace } from '@deepseek-ai/dsh-workspace'
 import { PI_EMPLOYEE_PROVIDER } from './employee-adapter.ts'
 import type { EmployeeRecord, EmployeeStore } from './employee-store.ts'
-import type { EmployeeCreateRequest, EmployeeDeleteRequest, EmployeeUpdateRequest, EmployeeView } from './types.ts'
+import type { ChannelSnapshotWire, EmployeeCreateRequest, EmployeeDeleteRequest, EmployeeUpdateRequest, EmployeeView } from './types.ts'
 
 /** Explicit wiring the service orchestrates against. */
+/** The channel onboarding facade the directory exposes over the Typert gateway. */
+export interface ChannelFacade {
+  /** Current effective channel configuration and capture state. */
+  readonly get: () => ChannelSnapshotInternal
+  /** Persist one notification group id and restart the channel listener. */
+  readonly saveGroup: (groupId: string) => Promise<void>
+  /** Probe the dws CLI executable and login state. */
+  readonly preflight: () => Promise<{ ok: boolean; reason?: string; detail?: string }>
+  /** List candidate notification groups from the logged-in account. */
+  readonly listGroups: () => Promise<readonly { id: string; name: string }[]>
+  /** Begin one capture round. */
+  readonly startCapture: () => Promise<void>
+  /** Abandon a capture round. */
+  readonly cancelCapture: () => Promise<void>
+}
+
+/** Mutable snapshot shape shared with the plugin wiring. */
+export interface ChannelSnapshotInternal {
+  readonly dingtalkGroupId?: string
+  readonly allowedSenderIds?: readonly string[]
+  readonly capturePending: boolean
+  readonly listenerRunning: boolean
+}
+
+
 export interface EmployeeDirectoryDeps {
   /** Durable employee store. */
   readonly store: EmployeeStore
@@ -40,6 +65,8 @@ export interface EmployeeDirectoryDeps {
   readonly ensureChild: (employee: EmployeeRecord) => Promise<{ child: { sendPrompt(text: string): Promise<string> } }>
   /** Lifecycle notice sink (employee created/destroyed); never throws to the caller. */
   readonly onLifecycle?: (message: string) => void
+  /** DingTalk channel onboarding (Stage 9); absent when the channel is not wired at all. */
+  readonly channel?: ChannelFacade
 }
 
 /** Employee CRUD and session orchestration over the Typert gateway. */
@@ -116,6 +143,59 @@ export class EmployeeDirectoryService extends TypertRemoteService {
       ...request.description !== undefined ? { description: request.description } : {},
       ...request.cwd !== undefined ? { cwd: request.cwd } : {},
     }))
+  }
+
+  /** Probe the dws CLI executable and login state (channel onboarding preflight). */
+  @Remote('dingtalkPreflight')
+  async dingtalkPreflight(): Promise<{ ok: boolean; reason?: string; detail?: string }> {
+    if (this.deps.channel === undefined) return { ok: false, reason: 'unconfigured' }
+    return this.deps.channel.preflight()
+  }
+
+  /** List candidate notification groups from the logged-in account. */
+  @Remote('dingtalkListGroups')
+  async dingtalkListGroups(): Promise<{ groups: readonly { id: string; name: string }[] }> {
+    if (this.deps.channel === undefined) return { groups: [] }
+    return { groups: await this.deps.channel.listGroups() }
+  }
+
+  /** Current channel configuration, whitelist, and capture state. */
+  @Remote('dingtalkGetChannel')
+  dingtalkGetChannel(): ChannelSnapshotWire {
+    if (this.deps.channel === undefined) {
+      return { allowedSenderIds: [], capturePending: false, listenerRunning: false }
+    }
+    const snapshot = this.deps.channel.get()
+    return {
+      ...(snapshot.dingtalkGroupId !== undefined ? { dingtalkGroupId: snapshot.dingtalkGroupId } : {}),
+      allowedSenderIds: snapshot.allowedSenderIds ?? [],
+      capturePending: snapshot.capturePending,
+      listenerRunning: snapshot.listenerRunning,
+    }
+  }
+
+  /** Persist one notification group id and restart the channel listener. */
+  @Remote('dingtalkSaveGroup')
+  async dingtalkSaveGroup(request: { groupId: string }): Promise<{ saved: true }> {
+    if (this.deps.channel === undefined) throw new Error('pi-agent: the DingTalk channel is not configured in this deployment')
+    await this.deps.channel.saveGroup(request.groupId)
+    return { saved: true }
+  }
+
+  /** Begin one sender-capture round; the next whitelisted-external group message admits its sender. */
+  @Remote('dingtalkStartCapture')
+  async dingtalkStartCapture(): Promise<{ capturePending: true }> {
+    if (this.deps.channel === undefined) throw new Error('pi-agent: the DingTalk channel is not configured in this deployment')
+    await this.deps.channel.startCapture()
+    return { capturePending: true }
+  }
+
+  /** Abandon a sender-capture round. */
+  @Remote('dingtalkCancelCapture')
+  async dingtalkCancelCapture(): Promise<{ capturePending: false }> {
+    if (this.deps.channel === undefined) throw new Error('pi-agent: the DingTalk channel is not configured in this deployment')
+    await this.deps.channel.cancelCapture()
+    return { capturePending: false }
   }
 
   /** Remove one employee (admins included); its session and pi files stay untouched. */

@@ -62,7 +62,8 @@ export class AdminInboundDispatcher {
     // Pipeline notifications echo through the same group; a 【-prefixed text is
     // our own output, never a user instruction.
     if (message.content.startsWith('【')) return
-    const admin = this.deps.store.list().find(row => row.type === 'admin')
+    const admins = this.deps.store.list().filter(row => row.type === 'admin')
+    const admin = admins[0]
     if (admin === undefined || admin.channel === undefined) return
 
     const previous = this.inFlight.get(admin.id) ?? Promise.resolve()

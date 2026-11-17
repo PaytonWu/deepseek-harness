@@ -61,3 +61,11 @@ export interface EmployeeUpdateRequest {
 export interface EmployeeDeleteRequest {
   readonly id: string
 }
+
+/** Wire shape of one DingTalk channel snapshot (optional key omitted when unset). */
+export interface ChannelSnapshotWire {
+  readonly dingtalkGroupId?: string
+  readonly allowedSenderIds: readonly string[]
+  readonly capturePending: boolean
+  readonly listenerRunning: boolean
+}

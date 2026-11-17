@@ -31,6 +31,8 @@ export type EmployeeSourceHooks = {
   readonly pendingEdit: ObservableSnapshot<{ employeeId: string } | null>
   /** The admin receiving a bound coder, or null. */
   readonly pendingBind: ObservableSnapshot<{ adminId: string } | null>
+  /** The channel setup target (admin), or null. */
+  readonly pendingChannel: ObservableSnapshot<{ adminId: string } | null>
   /** True from the moment a creation request is accepted until it settles. */
   readonly creating: ObservableSnapshot<boolean>
 }
@@ -55,6 +57,10 @@ export interface EmployeeSource {
   requestBind(adminId: string): void
   /** Clear the bind request. */
   clearBind(): void
+  /** Raise the DingTalk channel setup dialog for one admin. */
+  requestChannel(adminId: string): void
+  /** Clear the channel setup request. */
+  clearChannel(): void
   /** Raise or clear the creation flag. */
   setCreating(next: boolean): void
 }
@@ -67,8 +73,9 @@ export function createEmployeeSource(): EmployeeSource {
   const pendingDismiss = createSnapshotStore<DismissRequest | null>(null)
   const pendingEdit = createSnapshotStore<{ employeeId: string } | null>(null)
   const pendingBind = createSnapshotStore<{ adminId: string } | null>(null)
+  const pendingChannel = createSnapshotStore<{ adminId: string } | null>(null)
   return {
-    hooks: { employees, wizard, creating, pendingDismiss, pendingEdit, pendingBind },
+    hooks: { employees, wizard, creating, pendingDismiss, pendingEdit, pendingBind, pendingChannel },
     adopt: (rows) => { employees.set(rows) },
     setWizard: (up) => { wizard.set(up) },
     requestDismiss: (request) => { pendingDismiss.set(request) },
@@ -77,6 +84,8 @@ export function createEmployeeSource(): EmployeeSource {
     clearEdit: () => { pendingEdit.set(null) },
     requestBind: (adminId: string) => { pendingBind.set({ adminId }) },
     clearBind: () => { pendingBind.set(null) },
+    requestChannel: (adminId) => { pendingChannel.set({ adminId }) },
+    clearChannel: () => { pendingChannel.set(null) },
     setCreating: (next) => { creating.set(next) },
   }
 }

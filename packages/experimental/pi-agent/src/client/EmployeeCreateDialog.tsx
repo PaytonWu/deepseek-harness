@@ -37,6 +37,8 @@ export interface EmployeeCreateDialogInjected {
   readonly create: (request: EmployeeCreateRequest) => Promise<RemoteResult<EmployeeView>>
   /** List the pi child's selectable models for the model dropdown. */
   readonly listModels: () => Promise<RemoteResult<{ models: readonly EmployeeModelOption[] }>>
+  /** Probe the dws CLI executable and login state (admin channel precondition). */
+  readonly dingtalkPreflight: () => Promise<RemoteResult<{ ok: boolean; reason?: string; detail?: string }>>
   /** Open the Host-native directory picker; null means cancelled. */
   readonly pickDirectory: () => Promise<string | null>
   /** Select a Session and show its Conversation. */
@@ -69,7 +71,7 @@ type Translate = PropsLocale<typeof NS>['t']
 export function EmployeeCreateDialogHost(props: EmployeeCreateDialogProps): ReactNode {
   const {
     useWizard, useCreating, useEmployees,
-    create, listModels, pickDirectory, openSession, close, t,
+    create, listModels, dingtalkPreflight, pickDirectory, openSession, close, t,
   } = props
   const up = useWizard(open => open)
   const busy = useCreating(value => value)
@@ -80,6 +82,7 @@ export function EmployeeCreateDialogHost(props: EmployeeCreateDialogProps): Reac
       busy={busy}
       create={create}
       listModels={listModels}
+      dingtalkPreflight={dingtalkPreflight}
       pickDirectory={pickDirectory}
       openSession={openSession}
       close={close}
@@ -93,6 +96,7 @@ interface EmployeeCreateDialogFormProps {
   readonly useEmployees: (select: (rows: readonly EmployeeView[]) => readonly EmployeeView[]) => readonly EmployeeView[]
   readonly create: EmployeeCreateDialogInjected['create']
   readonly listModels: EmployeeCreateDialogInjected['listModels']
+  readonly dingtalkPreflight: EmployeeCreateDialogInjected['dingtalkPreflight']
   readonly pickDirectory: EmployeeCreateDialogInjected['pickDirectory']
   readonly openSession: EmployeeCreateDialogInjected['openSession']
   readonly close: EmployeeCreateDialogInjected['close']
@@ -110,7 +114,7 @@ type WizardKind = 'pick' | 'pi-coder' | 'admin'
  * @returns the dialog.
  */
 function EmployeeCreateDialog(
-  { busy, create, listModels, pickDirectory, openSession, close, t, useEmployees }: EmployeeCreateDialogFormProps,
+  { busy, create, listModels, dingtalkPreflight, pickDirectory, openSession, close, t, useEmployees }: EmployeeCreateDialogFormProps,
 ): ReactNode {
   const [kind, setKind] = useState<WizardKind>('pick')
   const [name, setName] = useState('')
@@ -126,6 +130,7 @@ function EmployeeCreateDialog(
   const managerTriggerRef = useRef<HTMLButtonElement>(null)
   const thinkingId = useId()
   const admins = useEmployees(rows => rows.filter(row => row.type === 'admin'))
+  const [dwsState, setDwsState] = useState<'idle' | 'checking' | { ok: boolean; reason?: string; detail?: string }>('idle')
 
   useEffect(() => {
     let cancelled = false
@@ -134,6 +139,19 @@ function EmployeeCreateDialog(
     }).catch(() => { cancelled = true })
     return () => { cancelled = true }
   }, [listModels])
+
+  // The admin type needs a logged-in dws CLI; probe once when the card is picked.
+  useEffect(() => {
+    if (kind !== 'admin') return
+    let cancelled = false
+    setDwsState('checking')
+    dingtalkPreflight().then((result) => {
+      if (cancelled) return
+      if (result.ok) setDwsState(result.value)
+      else setDwsState({ ok: false, reason: 'failed' })
+    }).catch(() => { if (!cancelled) setDwsState({ ok: false, reason: 'failed' }) })
+    return () => { cancelled = true }
+  }, [kind, dingtalkPreflight])
 
   /** Adopt a picked directory; a cancelled pick keeps the typed path. */
   const browse = (): void => {
@@ -144,6 +162,10 @@ function EmployeeCreateDialog(
 
   const submit = (): void => {
     if (kind === 'pick') return
+    if (kind === 'admin' && !(typeof dwsState === 'object' && dwsState.ok)) {
+      setError(t('create.dwsRequired'))
+      return
+    }
     const directory = kind === 'admin' ? undefined : cwd.trim()
     if (kind === 'pi-coder' && directory === '') {
       setError(t('create.cwdRequired'))
@@ -251,6 +273,17 @@ function EmployeeCreateDialog(
                   <Button variant="outline" onClick={browse}>{t('create.field.cwdPick')}</Button>
                 </div>
               </label>
+            )}
+            {kind === 'admin' && dwsState === 'checking' && (
+              <div className={css.field}><p className={css.intro}>{t('create.dwsChecking')}</p></div>
+            )}
+            {kind === 'admin' && typeof dwsState === 'object' && !dwsState.ok && (
+              <div className={css.field}>
+                <div className={css.error} role="alert">
+                  <p>{dwsState.reason === 'missing' ? t('create.dwsMissing') : dwsState.reason === 'login' ? t('create.dwsLogin') : t('create.dwsFailed')}</p>
+                  {dwsState.detail !== undefined && <p>{dwsState.detail}</p>}
+                </div>
+              </div>
             )}
             {kind === 'pi-coder' && admins.length > 1 && (
               <div className={css.field}>
