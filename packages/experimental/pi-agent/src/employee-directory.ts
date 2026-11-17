@@ -258,9 +258,15 @@ export class EmployeeDirectoryService extends TypertRemoteService {
   /**
    * Materialize the group Workspace at plugin start (not lazily at the first
    * employee), so its default-blank exclusion holds before any client boots.
+   * Re-exposes every stored admin's tool server for the same reason: the
+   * loopback endpoint and its token die with the Host process, and a stale
+   * `.pi/mcp.json` would hang the admin's pi child at startup.
    */
   async warmup(): Promise<void> {
-    await this.ensureWorkspace()
+    const workspace = await this.ensureWorkspace()
+    for (const admin of this.deps.store.list().filter(row => row.type === 'admin')) {
+      await this.exposeAdminTools(admin.id, workspace.path)
+    }
   }
 
   /** Resolve the employee group Workspace, creating it once. */

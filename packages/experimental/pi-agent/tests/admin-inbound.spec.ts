@@ -54,8 +54,8 @@ describe('AdminInboundDispatcher (T5.1, T5.4-M7) whitelist and injection', () =>
     await dispatcher.dispatch({ senderId: SENDER, content: '让小张跑构建' })
     expect(ensureForAdmin).toHaveBeenCalledOnce()
     expect(injects).toEqual(['让小张跑构建'])
-    expect(transport.send).toHaveBeenCalledWith('收到，已安排小张跑构建。')
-    expect(sent.some(message => message.includes('收到，已安排小张跑构建'))).toBe(true)
+    expect(transport.send).toHaveBeenCalledWith('【管理员A】收到，已安排小张跑构建。')
+    expect(sent.some(message => message.includes('【管理员A】收到，已安排小张跑构建'))).toBe(true)
   })
 
   it('ignores a non-whitelisted sender entirely', async () => {

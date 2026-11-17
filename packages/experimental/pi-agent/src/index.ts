@@ -183,7 +183,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
   }
   const channelTransport = config.dingtalkGroupId !== undefined
-    ? new DwsTransport({ notificationGroupId: config.dingtalkGroupId })
+    ? new DwsTransport({
+      notificationGroupId: config.dingtalkGroupId,
+      ...(config.dingtalkAllowedSenderIds !== undefined ? { allowedSenderOpenDingTalkIds: config.dingtalkAllowedSenderIds } : {}),
+    })
     : undefined
   let channelLifecycle: ((message: string) => Promise<void>) | undefined
 

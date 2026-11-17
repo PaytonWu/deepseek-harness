@@ -47,7 +47,7 @@ export class DwsTransport {
   private readonly receiveCallbacks: Array<(message: InboundDingtalkMessage) => void> = []
 
   constructor(private readonly options: DwsTransportOptions) {
-    this.spawnFn = options.spawn ?? ((command, args) => spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] }))
+    this.spawnFn = options.spawn ?? ((command, args) => spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'] }))
     this.restartDelayMs = options.restartDelayMs ?? 2_000
   }
 

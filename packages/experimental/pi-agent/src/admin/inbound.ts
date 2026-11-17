@@ -73,7 +73,9 @@ export class AdminInboundDispatcher {
         handle = await this.deps.ensureForAdmin(admin.id)
         await handle.inject(message.content)
         const answer = await handle.answer()
-        await this.deps.transport.send(answer === '' ? '（本轮无回复）' : answer)
+        // The 【 prefix marks pipeline output; without it the answer echoes
+        // back through the listener and the manager talks to itself.
+        await this.deps.transport.send(answer === '' ? '（本轮无回复）' : `【${admin.name}】${answer}`)
       } catch (error) {
         await this.deps.transport.send(`${tFailure()} ${String(error)}`)
       }
