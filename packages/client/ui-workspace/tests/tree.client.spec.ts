@@ -821,7 +821,6 @@ describe('deriveSearchResults', () => {
     expect(result.items.map(item => [item.id, item.title])).toEqual([[idHit.id, 'Ordinary title']])
   })
 
-<<<<<<< HEAD
   it('excludes blank sessions from search regardless of query or content hits', () => {
     const currentBlank = { ...summary('opaque-current', 5), blank: true }
     const staleBlank = { ...summary('new session stale', 4), blank: true }
@@ -829,7 +828,24 @@ describe('deriveSearchResults', () => {
     // Blank placeholders never match — not their localized-display title, not
     // their id, and not even a backend content hit naming them.
     const result = searchResults(
-=======
+      sessions,
+      [workspace('first', ['opaque-current', 'new session stale'])],
+      'new session',
+      noArchive,
+      'default',
+      noAttention,
+      {
+        items: [
+          { sessionId: staleBlank.id, snippet: 'stale body' },
+          { sessionId: currentBlank.id, snippet: 'current body' },
+        ],
+        hasMore: false,
+      },
+      10,
+    )
+    expect(result.items).toEqual([])
+  })
+
   it('matches titled blanks by title and never matches untitled blanks', () => {
     const titledBlank = { ...summary('new session stale', 5), blank: true }
     const untitledBlank = { ...summary('opaque-current', 4), blank: true, title: '' }
@@ -837,8 +853,7 @@ describe('deriveSearchResults', () => {
     // A titled blank (a created digital employee awaiting its first message)
     // matches by its stored title; an untitled blank matches nothing — not its
     // id, and not even a backend content hit naming it.
-    const result = deriveSearchResults(
->>>>>>> b71bdaee94 (fix(client): keep titled blank sessions visible and searchable)
+    const result = searchResults(
       sessions,
       [workspace('first', ['new session stale', 'opaque-current'])],
       'new session',
